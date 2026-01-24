@@ -10,35 +10,48 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
+# Récupération des clés (avec nettoyage au cas où il y a des guillemets en trop)
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 if SUPABASE_URL: SUPABASE_URL = SUPABASE_URL.strip().strip("'").strip('"')
 if SUPABASE_KEY: SUPABASE_KEY = SUPABASE_KEY.strip().strip("'").strip('"')
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# --- 1. LE CERVEAU GÉOGRAPHIQUE ---
-# Coordonnées des villes supportées (Pour savoir qui est où)
-# Tu pourras ajouter d'autres villes ici
+# Connexion Supabase
+if not SUPABASE_URL or not SUPABASE_KEY:
+    print("⚠️ ERREUR: Les clés SUPABASE_URL ou SUPABASE_KEY sont manquantes.")
+    supabase = None
+else:
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# --- 1. LE CERVEAU GÉOGRAPHIQUE (SECOURS) ---
 CITIES_DB = {
     "tizi ouzou": {"lat": 36.7118, "lon": 4.0505},
+    "tizi": {"lat": 36.7118, "lon": 4.0505},
     "alger": {"lat": 36.7528, "lon": 3.0420},
     "oran": {"lat": 35.6971, "lon": -0.6308},
     "bejaia": {"lat": 36.7509, "lon": 5.0567},
     "bouira": {"lat": 36.3749, "lon": 3.9020},
     "draa ben khedda": {"lat": 36.7333, "lon": 3.9667},
-    "azazga": {"lat": 36.7447, "lon": 4.3722}
+    "dbk": {"lat": 36.7333, "lon": 3.9667},
+    "azazga": {"lat": 36.7447, "lon": 4.3722},
+    "freha": {"lat": 36.7667, "lon": 4.3167},
+    "tamda": {"lat": 36.7167, "lon": 4.1333}
 }
 
 def haversine(lat1, lon1, lat2, lon2):
     """Calcul la distance en KM entre deux points GPS"""
-    R = 6371.0
-    dlat = math.radians(lat2 - lat1)
-    dlon = math.radians(lon2 - lon1)
-    a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    return round(R * c, 2)
+    try:
+        if not lat1 or not lon1 or not lat2 or not lon2: return 0
+        R = 6371.0
+        dlat = math.radians(lat2 - lat1)
+        dlon = math.radians(lon2 - lon1)
+        a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        return round(R * c, 2)
+    except:
+        return 0
 
-# --- ROUTES PAGES ---
+# --- ROUTES PAGES (FRONTEND) ---
 @app.route('/')
 def home(): return send_from_directory('.', 'connexion.html')
 @app.route('/inscription')
@@ -49,14 +62,14 @@ def page_connexion(): return send_from_directory('.', 'connexion.html')
 def page_voyageur(): return send_from_directory('.', 'index.html')
 @app.route('/chauffeur')
 def page_chauffeur(): return send_from_directory('.', 'chauffeur.html')
+@app.route('/<path:path>')
+def static_file(path): return send_from_directory('.', path)
 
-# --- API INSCRIPTION CORRIGÉE ---
+# --- API 1 : INSCRIPTION (AVEC GPS) ---
 @app.route('/api/register', methods=['POST'])
 def register():
     data = request.json
     role = data.get('role')
-    
-    # On sécurise les entrées pour éviter le crash "NoneType has no attribute lower"
     email = data.get('email')
     password = data.get('password')
     
@@ -68,51 +81,33 @@ def register():
             uid = auth.user.id
             
             if role == 'chauffeur':
-                # Sécurisation des données villes
-                v_dep = data.get('v_depart', '') or ''
-                v_arr = data.get('v_arrivee', '') or ''
-                
+                # On enregistre les infos + LES COORDONNÉES EXACTES DE LA LIGNE
                 supabase.table('drivers').insert({
                     'id': uid,
                     'nom_complet': data.get('nom'),
                     'telephone': data.get('tel'),
-                    'matricule_ve@app.route('/api/register', methods=['POST'])
-def register():
-    data = request.json
-    role = data.get('role')
-    email = data.get('email')
-    password = data.get('password')
-    
-    try:
-        auth = supabase.auth.sign_up({"email": email, "password": password})
-        if auth.user:
-            uid = auth.user.id
-            if role == 'chauffeur':
-                supabase.table('drivers').insert({
-                    'id': uid,
-                    'nom_complet': data.get('nom'),
-                    'telephone': data.get('tel'),
-                    'ville_depart': data.get('v_depart', '').lower().strip(), # Nom détecté auto
-                    'ville_arrivee': data.get('v_arrivee', '').lower().strip(), # Nom détecté auto
+                    'ville_depart': data.get('v_depart', '').lower().strip(),
+                    'ville_arrivee': data.get('v_arrivee', '').lower().strip(),
                     'matricule_vehicule': data.get('matricule'),
                     'modele_vehicule': data.get('modele'),
-                    # --- NOUVEAU : SAUVEGARDE GPS EXACT ---
                     'dep_lat': data.get('dep_lat'),
                     'dep_lon': data.get('dep_lon'),
                     'arr_lat': data.get('arr_lat'),
                     'arr_lon': data.get('arr_lon')
                 }).execute()
             else:
+                # Voyageur simple
                 supabase.table('passengers').insert({
                     'id': uid, 'nom_complet': data.get('nom'), 'telephone': data.get('tel')
                 }).execute()
+            
             return jsonify({"status": "success"})
-        return jsonify({"error": "Auth failed"}), 400
+        return jsonify({"error": "Echec authentification"}), 400
     except Exception as e:
-        print(e)
+        print(f"Erreur Register: {e}")
         return jsonify({"error": str(e)}), 500
 
-# --- API CONNEXION ---
+# --- API 2 : CONNEXION ---
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.json
@@ -123,13 +118,15 @@ def login():
         driver = supabase.table('drivers').select('*').eq('id', uid).execute()
         if driver.data:
             return jsonify({"status": "success", "role": "chauffeur", "user": driver.data[0]})
+        
         passenger = supabase.table('passengers').select('*').eq('id', uid).execute()
         if passenger.data:
             return jsonify({"status": "success", "role": "voyageur", "user": passenger.data[0]})
+            
         return jsonify({"error": "Rôle inconnu"}), 400
-    except: return jsonify({"error": "Login incorrect"}), 401
+    except: return jsonify({"error": "Email ou mot de passe incorrect"}), 401
 
-# --- API INTELLIGENTE : MISE A JOUR POSITION ---
+# --- API 3 : MISE A JOUR POSITION ---
 @app.route('/api/update-position', methods=['POST'])
 def update_position():
     data = request.json
@@ -138,57 +135,61 @@ def update_position():
     lon = data.get('lon')
 
     try:
-        # 1. On récupère les infos fixes du chauffeur (sa ligne)
-        driver_info = supabase.table('drivers').select('ville_depart, ville_arrivee').eq('id', driver_id).execute().data
+        # 1. On récupère les infos fixes du chauffeur
+        driver_info = supabase.table('drivers').select('*').eq('id', driver_id).execute().data
         if not driver_info: return jsonify({"error": "Chauffeur inconnu"}), 404
+        driver = driver_info[0]
         
-        v_dep_nom = driver_info[0]['ville_depart']
-        v_arr_nom = driver_info[0]['ville_arrivee']
+        v_dep_nom = driver.get('ville_depart', '')
+        v_arr_nom = driver.get('ville_arrivee', '')
 
-        # 2. On récupère les coordonnées de ces villes dans notre CERVEAU
-        coord_dep = CITIES_DB.get(v_dep_nom)
-        coord_arr = CITIES_DB.get(v_arr_nom)
+        # 2. On essaie d'avoir les coords exactes (depuis inscription) ou fallback DB
+        coord_dep = None
+        if driver.get('dep_lat'): coord_dep = {'lat': driver['dep_lat'], 'lon': driver['dep_lon']}
+        else: coord_dep = CITIES_DB.get(v_dep_nom)
+
+        coord_arr = None
+        if driver.get('arr_lat'): coord_arr = {'lat': driver['arr_lat'], 'lon': driver['arr_lon']}
+        else: coord_arr = CITIES_DB.get(v_arr_nom)
 
         destination_actuelle = "Inconnue"
 
-        # 3. CALCUL AUTOMATIQUE DE LA DIRECTION
+        # 3. CALCUL AUTOMATIQUE DIRECTION
         if coord_dep and coord_arr:
             dist_to_dep = haversine(lat, lon, coord_dep['lat'], coord_dep['lon'])
             dist_to_arr = haversine(lat, lon, coord_arr['lat'], coord_arr['lon'])
 
-            # Si le bus est plus près du départ, c'est qu'il va vers l'arrivée
             if dist_to_dep < dist_to_arr:
-                destination_actuelle = v_arr_nom # Il va vers l'arrivée
+                destination_actuelle = v_arr_nom # S'éloigne du départ -> Va vers arrivée
             else:
-                destination_actuelle = v_dep_nom # Il revient vers le départ
+                destination_actuelle = v_dep_nom # Revient vers le départ
 
-        # 4. On sauvegarde ça dans la base
+        # 4. Sauvegarde
         supabase.table('active_trips').upsert({
             'chauffeur_id': driver_id,
             'current_lat': lat,
             'current_lon': lon,
-            'direction_actuelle': destination_actuelle # On stocke vers où il va vraiment
+            'direction_actuelle': destination_actuelle,
+            'last_update': 'now()'
         }).execute()
         
         return jsonify({"status": "updated", "direction": destination_actuelle})
     except Exception as e: return jsonify({"error": str(e)}), 500
 
+# --- API 4 : TROUVER BUS (INTELLIGENTE) ---
 @app.route('/api/trouver-bus', methods=['POST'])
 def api_trouver_bus():
     data = request.json
     user_lat = data.get('user_lat')
     user_lon = data.get('user_lon')
 
-    # --- FONCTION DE NETTOYAGE ---
     def clean_text(t):
         if not t: return ""
         return t.lower().replace('-', ' ').strip()
 
-    # 1. Récupération des textes
     txt_dep = clean_text(data.get('depart_text', ''))
     txt_arr = clean_text(data.get('arrivee_text', ''))
 
-    # On vérifie si au moins UN des champs est rempli
     has_dep = len(txt_dep) > 0
     has_arr = len(txt_arr) > 0
     recherche_active = (has_dep or has_arr)
@@ -207,41 +208,38 @@ def api_trouver_bus():
                 driver = driver_req.data[0]
             except: continue
 
-            # Ligne du chauffeur nettoyée (pour le filtre textuel)
             l_dep = clean_text(driver.get('ville_depart', ''))
             l_arr = clean_text(driver.get('ville_arrivee', ''))
 
-            # --- 2. FILTRE STRICT ---
+            # --- FILTRE ---
             if recherche_active:
                 is_match_aller = True
                 is_match_retour = True
 
-                # TEST SENS ALLER
+                # SENS ALLER
                 if has_dep and txt_dep not in l_dep: is_match_aller = False
                 if has_arr and txt_arr not in l_arr: is_match_aller = False
 
-                # TEST SENS RETOUR
+                # SENS RETOUR
                 if has_dep and txt_dep not in l_arr: is_match_retour = False
                 if has_arr and txt_arr not in l_dep: is_match_retour = False
 
                 if not is_match_aller and not is_match_retour:
                     continue 
 
-            # --- 3. LOGIQUE COORDONNÉES (NOUVEAU SYSTÈME HYBRIDE) ---
-            
-            # A. On essaie d'abord les COORDONNÉES EXACTES du chauffeur (Inscription Carte)
+            # --- COORDONNÉES EXACTES ---
             coord_dep = None
             if driver.get('dep_lat') and driver.get('dep_lon'):
                 coord_dep = {'lat': driver['dep_lat'], 'lon': driver['dep_lon']}
-
+            
             coord_arr = None
             if driver.get('arr_lat') and driver.get('arr_lon'):
                 coord_arr = {'lat': driver['arr_lat'], 'lon': driver['arr_lon']}
 
-            # B. Si le chauffeur n'a pas de GPS enregistré (Vieux compte), on utilise CITIES_DB (Secours)
+            # Fallback CITIES_DB
             if not coord_dep: 
                 coord_dep = CITIES_DB.get(l_dep)
-                if not coord_dep: # Tentative floue
+                if not coord_dep:
                     for k in CITIES_DB: 
                         if k in l_dep: coord_dep = CITIES_DB[k]; break
             
@@ -251,22 +249,19 @@ def api_trouver_bus():
                     for k in CITIES_DB:
                         if k in l_arr: coord_arr = CITIES_DB[k]; break
 
-            # --- 4. LOGIQUE TERMINUS ---
+            # Terminus
             direction = trip.get('direction_actuelle')
             terminus_officiel = None
             
-            # Logique direction
             if direction:
                 d_clean = clean_text(direction)
                 if d_clean in l_arr: terminus_officiel = coord_arr
                 elif d_clean in l_dep: terminus_officiel = coord_dep
             
-            # Si direction inconnue, on devine selon la recherche du voyageur
             if not terminus_officiel and recherche_active:
                 if has_arr and txt_arr in l_arr: terminus_officiel = coord_arr
                 elif has_arr and txt_arr in l_dep: terminus_officiel = coord_dep
 
-            # Calcul Distance
             dist_user = 0
             if user_lat and trip['current_lat']:
                 dist_user = haversine(user_lat, user_lon, trip['current_lat'], trip['current_lon'])
@@ -289,10 +284,8 @@ def api_trouver_bus():
         return jsonify({"bus_proches": bus_proches})
 
     except Exception as e:
-        print(f"🔴 ERREUR: {e}")
+        print(f"🔴 ERREUR API: {e}")
         return jsonify({"bus_proches": []})
 
 if __name__ == '__main__':
-
-    app.run(host='0.0.0.0', port=5000, debug=True)
-
+    app.run(host='0.0.0.0', port=5000)

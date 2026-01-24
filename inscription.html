@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inscription</title>
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@600;800&display=swap" rel="stylesheet">
+    <style>
+        /* Mêmes styles "Taxi App" que le reste */
+        body { font-family: 'Urbanist', sans-serif; background: #000000; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #1e1e1e; padding: 30px; border-radius: 24px; width: 90%; max-width: 400px; border: 1px solid #333; }
+        
+        h3 { margin-top: 0; text-align: center; font-size: 1.5rem; margin-bottom: 25px; }
+        
+        input { 
+            width: 100%; padding: 16px; margin-bottom: 12px; border-radius: 12px; 
+            border: 1px solid #333; background: #2c2c2c; color: white; 
+            box-sizing: border-box; font-family: inherit; font-size: 1rem; outline: none;
+        }
+        input:focus { border-color: #d4fb79; }
+
+        button { 
+            width: 100%; padding: 16px; background: #d4fb79; color: black; 
+            border: none; border-radius: 12px; font-weight: 800; font-size: 1.1rem; 
+            cursor: pointer; margin-top: 10px; 
+        }
+        
+        .switch { display: flex; margin-bottom: 25px; background: #2c2c2c; padding: 5px; border-radius: 12px; }
+        .switch div { flex: 1; text-align: center; padding: 12px; cursor: pointer; border-radius: 10px; font-weight: 700; transition: 0.3s; }
+        .active { background: #d4fb79; color: black; }
+        
+        .hidden { display: none; }
+        .label-line { font-size: 0.85rem; color: #a1a1aa; margin-bottom: 8px; margin-top: 5px; display: block; }
+        a { color: #d4fb79; text-decoration: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h3>Créer un compte</h3>
+        
+        <div class="switch">
+            <div id="btnV" class="active" onclick="setRole('voyageur')">Voyageur</div>
+            <div id="btnC" onclick="setRole('chauffeur')">Chauffeur</div>
+        </div>
+
+        <input type="text" id="nom" placeholder="Nom complet">
+        <input type="tel" id="tel" placeholder="Téléphone">
+        <input type="email" id="email" placeholder="Email">
+        <input type="password" id="password" placeholder="Mot de passe">
+
+        <div id="driverFields" class="hidden">
+            <span class="label-line">Votre ligne habituelle :</span>
+            <input type="text" id="v_depart" placeholder="Ville de Départ (ex: Tizi)">
+            <input type="text" id="v_arrivee" placeholder="Ville d'Arrivée (ex: Alger)">
+            
+            <span class="label-line">Infos Véhicule :</span>
+            <input type="text" id="matricule" placeholder="Matricule">
+            <input type="text" id="modele" placeholder="Modèle Véhicule">
+        </div>
+
+        <button onclick="inscrire()">S'inscrire</button>
+        <p style="text-align:center; font-size:0.9rem; color:#888;">Déjà un compte ? <a href="/connexion">Se connecter</a></p>
+    </div>
+
+    <script>
+        // 1. DÉCLARATION DE LA VARIABLE GLOBALE (C'est ça qui manquait !)
+        let role = 'voyageur'; 
+
+        function setRole(r) {
+            role = r; // Mise à jour de la variable globale
+            
+            // Gestion visuelle des boutons
+            document.getElementById('btnV').className = r === 'voyageur' ? 'active' : '';
+            document.getElementById('btnC').className = r === 'chauffeur' ? 'active' : '';
+            
+            // Afficher/Masquer les champs chauffeur
+            document.getElementById('driverFields').style.display = r === 'chauffeur' ? 'block' : 'none';
+        }
+
+        async function inscrire() {
+            // Récupération sécurisée des valeurs
+            const v_depart_elem = document.getElementById('v_depart');
+            const v_arrivee_elem = document.getElementById('v_arrivee');
+            const matricule_elem = document.getElementById('matricule');
+            const modele_elem = document.getElementById('modele');
+
+            const data = {
+                role: role, // Utilisation de la variable globale définie ligne 68
+                nom: document.getElementById('nom').value,
+                tel: document.getElementById('tel').value,
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value,
+                
+                // On envoie des chaînes vides "" si les champs n'existent pas ou sont vides
+                v_depart: v_depart_elem ? v_depart_elem.value : "",
+                v_arrivee: v_arrivee_elem ? v_arrivee_elem.value : "",
+                matricule: matricule_elem ? matricule_elem.value : "",
+                modele: modele_elem ? modele_elem.value : ""
+            };
+
+            try {
+                const res = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await res.json();
+                
+                if (res.ok) {
+                    alert("Compte créé ! Connectez-vous.");
+                    window.location.href = '/connexion';
+                } else {
+                    alert("Erreur: " + result.error);
+                }
+            } catch(e) { 
+                console.error(e); 
+                alert("Erreur de connexion au serveur.");
+            }
+        }
+    </script>
+</body>
+</html>

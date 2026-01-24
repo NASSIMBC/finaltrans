@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dark">
+<head>
+    <title>Tizi Transport</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style> 
+        /* --- THEME SOMBRE (Taxi Style) --- */
+        :root {
+            --bg-color: #000000;
+            --card-bg: rgba(30, 30, 30, 0.9);
+            --text-main: #ffffff;
+            --text-sub: #a1a1aa;
+            --accent: #d4fb79; /* Jaune Néon */
+            --input-bg: #2c2c2c;
+            --border: #3f3f46;
+        }
+
+        body { margin: 0; font-family: 'Urbanist', sans-serif; overflow: hidden; background: var(--bg-color); color: var(--text-main); }
+        #map { height: 100vh; width: 100%; z-index: 1; }
+
+        /* --- NAV BAR --- */
+        .glass-nav {
+            position: absolute; top: 0; left: 0; right: 0;
+            padding: 20px; display: flex; justify-content: space-between; align-items: center;
+            z-index: 1000; pointer-events: none;
+        }
+
+        .profile-container { pointer-events: auto; display: flex; align-items: center; gap: 10px; }
+        .profile-pic { width: 45px; height: 45px; border-radius: 50%; border: 2px solid var(--accent); }
+        .welcome-text { display: flex; flex-direction: column; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
+        .welcome-text strong { font-size: 1.1rem; }
+
+        .search-trigger {
+            pointer-events: auto; width: 45px; height: 45px; background: var(--card-bg);
+            border-radius: 50%; display: flex; justify-content: center; align-items: center;
+            border: 1px solid var(--border); cursor: pointer; backdrop-filter: blur(10px);
+        }
+
+        /* --- MODAL RECHERCHE --- */
+        .search-overlay {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8); z-index: 2000; backdrop-filter: blur(5px);
+            display: flex; justify-content: center; align-items: flex-start; padding-top: 80px;
+            opacity: 0; pointer-events: none; transition: 0.3s;
+        }
+        .search-overlay.active { opacity: 1; pointer-events: auto; }
+
+        .search-card {
+            width: 85%; max-width: 400px; background: var(--card-bg);
+            border-radius: 24px; padding: 25px; border: 1px solid var(--border);
+            transform: translateY(-20px); transition: 0.4s;
+        }
+        .search-overlay.active .search-card { transform: translateY(0); }
+
+        .card-title { font-size: 1.4rem; font-weight: 800; margin-bottom: 20px; }
+
+        /* Champs Trajet */
+        .route-visual { display: flex; gap: 15px; }
+        .dots-col { display: flex; flex-direction: column; align-items: center; padding-top: 15px; }
+        .dot-start { width: 12px; height: 12px; background: var(--accent); border-radius: 50%; }
+        .line { width: 2px; height: 50px; background: var(--text-sub); opacity: 0.3; margin: 5px 0; }
+        .dot-end { width: 12px; height: 12px; border: 2px solid #ef4444; border-radius: 50%; }
+        
+        .inputs-col { flex: 1; display: flex; flex-direction: column; gap: 15px; }
+        .input-field {
+            width: 100%; padding: 16px; border-radius: 12px; border: none;
+            background: var(--input-bg); color: white; font-weight: 600;
+            font-family: 'Urbanist', sans-serif; outline: none; box-sizing: border-box;
+        }
+        .input-field::placeholder { color: #64748b; }
+
+        .btn-main {
+            width: 100%; padding: 16px; border-radius: 12px; border: none;
+            background: var(--accent); color: black; font-size: 1rem; font-weight: 800;
+            cursor: pointer; margin-top: 25px;
+        }
+        .btn-close { position: absolute; top: 15px; right: 15px; background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer; }
+
+        /* --- RESULTATS --- */
+        .bottom-sheet {
+            position: absolute; bottom: 20px; left: 20px; right: 20px;
+            background: var(--card-bg); backdrop-filter: blur(20px);
+            border-radius: 24px; padding: 20px; z-index: 999; border: 1px solid var(--border);
+            transform: translateY(150%); transition: transform 0.4s; max-height: 40vh; overflow-y: auto;
+        }
+        .bottom-sheet.active { transform: translateY(0); }
+
+        .bus-item {
+            display: flex; align-items: center; padding: 15px;
+            background: rgba(255,255,255,0.05); border-radius: 16px;
+            margin-bottom: 10px; cursor: pointer; border: 1px solid transparent;
+        }
+        .bus-item:hover { border-color: var(--accent); }
+        .bus-info { flex: 1; margin-left: 15px; }
+        .bus-name { font-weight: 800; font-size: 1rem; }
+        .bus-sub { font-size: 0.85rem; color: var(--text-sub); }
+        .bus-dist { color: var(--accent); font-weight: 700; }
+
+        .leaflet-control-attribution { display: none; }
+    </style>
+</head>
+<body>
+
+    <script>if(!localStorage.getItem('user_session')) window.location.href = '/connexion';</script>
+
+    <nav class="glass-nav">
+        <div class="profile-container">
+            <img src="https://ui-avatars.com/api/?name=User&background=random" class="profile-pic">
+            <div class="welcome-text">
+                <span id="txtBonjour" style="font-size:0.8rem; opacity:0.7;">Bonjour,</span>
+                <strong id="txtName">Voyageur</strong>
+            </div>
+        </div>
+        <div class="search-trigger" onclick="toggleSearch()">
+            <i class="fas fa-search"></i>
+        </div>
+    </nav>
+
+    <div id="map"></div>
+
+    <div class="search-overlay active" id="searchOverlay">
+        <div class="search-card">
+            <button class="btn-close" onclick="toggleSearch()"><i class="fas fa-times"></i></button>
+            <div class="card-title">Votre trajet</div>
+
+            <div class="route-visual">
+                <div class="dots-col">
+                    <div class="dot-start"></div><div class="line"></div><div class="dot-end"></div>
+                </div>
+                <div class="inputs-col">
+                    <input type="text" class="input-field" id="txtDepart" placeholder="D'où partez-vous ? (ex: Tizi)">
+                    <input type="text" class="input-field" id="txtArrivee" placeholder="Où allez-vous ? (ex: Alger)">
+                </div>
+            </div>
+
+            <button class="btn-main" onclick="lancerRecherche()">
+                Trouver un chauffeur
+            </button>
+        </div>
+    </div>
+
+    <div class="bottom-sheet" id="resultsSheet">
+        <div style="font-weight:bold; margin-bottom:15px; color:#94a3b8;">RÉSULTATS</div>
+        <div id="busList"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const SERVER_URL = "http://192.168.1.95:5000";
+        let rechercheActive = false;
+
+        // Session
+        const session = JSON.parse(localStorage.getItem('user_session'));
+        if(session && session.user.nom_complet) document.getElementById('txtName').innerText = session.user.nom_complet.split(' ')[0];
+
+        // Carte Dark Mode
+        const map = L.map('map', { zoomControl: false }).setView([36.72, 4.05], 13);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+
+        // Icones
+        const iconBus = L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/5030/5030991.png', iconSize: [40, 40], iconAnchor: [20, 20] });
+        const iconUser = L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/5582/5582962.png', iconSize: [30, 30], iconAnchor: [15, 15] });
+
+        let userLat, userLon, userMarker;
+        let busMarkers = {};
+
+        // GPS
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(pos => {
+                userLat = pos.coords.latitude;
+                userLon = pos.coords.longitude;
+                
+                if(!userMarker) {
+                    userMarker = L.marker([userLat, userLon], {icon: iconUser}).addTo(map);
+                    map.setView([userLat, userLon], 14);
+                } else {
+                    userMarker.setLatLng([userLat, userLon]);
+                }
+                if(rechercheActive) fetchBus();
+            });
+        }
+
+        // Actions UI
+        function toggleSearch() {
+            document.getElementById('searchOverlay').classList.toggle('active');
+            // Si on ferme la recherche et qu'on a des résultats, on garde le panneau du bas ouvert
+        }
+
+        function lancerRecherche() {
+            const dep = document.getElementById('txtDepart').value;
+            const arr = document.getElementById('txtArrivee').value;
+            
+            if(!dep || !arr) return alert("Veuillez remplir les deux villes !");
+
+            rechercheActive = true;
+            document.getElementById('searchOverlay').classList.remove('active'); // Cache la recherche
+            document.getElementById('resultsSheet').classList.add('active'); // Montre les résultats
+            
+            fetchBus();
+        }
+
+        async function fetchBus() {
+            if(!rechercheActive) return;
+            
+            const dep = document.getElementById('txtDepart').value;
+            const arr = document.getElementById('txtArrivee').value;
+            const container = document.getElementById('busList');
+
+            try {
+                const res = await fetch(SERVER_URL + '/api/trouver-bus', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ 
+                        user_lat: userLat, 
+                        user_lon: userLon, 
+                        depart_text: dep,  // On envoie le texte tapé
+                        arrivee_text: arr 
+                    })
+                });
+                const data = await res.json();
+                
+                container.innerHTML = '';
+                
+                // Nettoyage des anciens marqueurs
+                for(let id in busMarkers) map.removeLayer(busMarkers[id]);
+                busMarkers = {};
+
+                if(data.bus_proches && data.bus_proches.length > 0) {
+                    data.bus_proches.forEach(bus => {
+                        // Marqueur
+                        const m = L.marker([bus.current_lat, bus.current_lon], {icon: iconBus}).addTo(map);
+                        m.bindPopup(bus.chauffeur);
+                        busMarkers[bus.bus_id] = m;
+
+                        // Liste
+                        const div = document.createElement('div');
+                        div.className = 'bus-item';
+                        div.innerHTML = `
+                            <div style="background:#333; width:40px; height:40px; border-radius:10px; display:flex; justify-content:center; align-items:center;">
+                                <i class="fas fa-bus" style="color:white;"></i>
+                            </div>
+                            <div class="bus-info">
+                                <div class="bus-name">${bus.chauffeur}</div>
+                                <div class="bus-sub">Direction: ${bus.direction ? bus.direction.toUpperCase() : '?'}</div>
+                            </div>
+                            <div class="bus-dist">${bus.distance_km} km</div>
+                        `;
+                        div.onclick = () => map.setView([bus.current_lat, bus.current_lon], 16);
+                        container.appendChild(div);
+                    });
+                } else {
+                    container.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b;">Aucun bus ne correspond à ce trajet pour le moment.</div>';
+                }
+
+            } catch(e) { console.error(e); }
+        }
+
+        setInterval(fetchBus, 4000);
+    </script>
+</body>
+</html>

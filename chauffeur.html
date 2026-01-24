@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <title>Espace Chauffeur</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { background: #0f172a; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .status-box { background: #1e293b; padding: 30px; border-radius: 20px; text-align: center; width: 90%; max-width: 350px; }
+        .line-info { color: #94a3b8; margin-bottom: 20px; font-size: 0.9rem; }
+        .line-route { font-size: 1.2rem; font-weight: bold; color: white; margin-bottom: 30px; }
+        
+        .btn-action { width: 100%; padding: 20px; font-size: 1.2rem; border-radius: 15px; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .btn-start { background: #d4fb79; color: black; box-shadow: 0 0 15px rgba(212, 251, 121, 0.3); }
+        .btn-stop { background: #ef4444; color: white; display: none; }
+        
+        .status-badge { display: inline-block; padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; margin-top: 20px; background: #334155; }
+        .live-anim { width: 10px; height: 10px; background: #ef4444; border-radius: 50%; display: inline-block; margin-right: 5px; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+    </style>
+</head>
+<body>
+    <div class="status-box">
+        <div class="line-info">VOTRE LIGNE</div>
+        <div class="line-route" id="lineName">Chargement...</div>
+
+        <button class="btn-action btn-start" id="btnStart" onclick="toggleGPS()">
+            <i class="fas fa-power-off"></i> EN LIGNE
+        </button>
+        <button class="btn-action btn-stop" id="btnStop" onclick="toggleGPS()">
+            HORS LIGNE
+        </button>
+
+        <div class="status-badge" id="statusBadge">🔴 Hors ligne</div>
+        <p id="directionDebug" style="color: #64748b; font-size: 0.8rem; margin-top: 10px;"></p>
+    </div>
+
+    <script>
+        const session = JSON.parse(localStorage.getItem('user_session'));
+        if(!session || session.role !== 'chauffeur') window.location.href = '/connexion';
+        
+        const vDep = session.user.ville_depart || '?';
+        const vArr = session.user.ville_arrivee || '?';
+        document.getElementById('lineName').innerText = `${vDep.toUpperCase()} ↔ ${vArr.toUpperCase()}`;
+
+        let watchId = null;
+
+        function toggleGPS() {
+            if(!watchId) {
+                // START
+                document.getElementById('btnStart').style.display = 'none';
+                document.getElementById('btnStop').style.display = 'block';
+                document.getElementById('statusBadge').innerHTML = '<div class="live-anim"></div> EN DIRECT';
+                document.getElementById('statusBadge').style.background = 'rgba(239, 68, 68, 0.2)';
+                document.getElementById('statusBadge').style.color = '#ef4444';
+
+                watchId = navigator.geolocation.watchPosition(pos => {
+                    fetch('/api/update-position', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            id: session.user.id,
+                            lat: pos.coords.latitude,
+                            lon: pos.coords.longitude
+                        })
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        // Le serveur nous renvoie la direction calculée, on l'affiche pour info
+                        if(data.direction) {
+                            document.getElementById('directionDebug').innerText = "Direction détectée : Vers " + data.direction.toUpperCase();
+                        }
+                    });
+                }, err => alert("Erreur GPS"), {enableHighAccuracy: true});
+
+            } else {
+                // STOP
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+                document.getElementById('btnStart').style.display = 'block';
+                document.getElementById('btnStop').style.display = 'none';
+                document.getElementById('statusBadge').innerText = '🔴 Hors ligne';
+                document.getElementById('statusBadge').style.background = '#334155';
+                document.getElementById('statusBadge').style.color = 'white';
+                document.getElementById('directionDebug').innerText = "";
+            }
+        }
+    </script>
+</body>
+</html>

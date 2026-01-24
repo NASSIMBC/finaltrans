@@ -164,87 +164,67 @@ def api_trouver_bus():
     user_lat = data.get('user_lat')
     user_lon = data.get('user_lon')
     
-    # On récupère et nettoie les textes
-    # .lower().strip() enlève les majuscules et les espaces en trop
-    txt_dep_voyageur = data.get('depart_text', '').lower().strip()
-    txt_arr_voyageur = data.get('arrivee_text', '').lower().strip()
+    # On récupère ce que le voyageur a écrit
+    txt_dep = data.get('depart_text', '').lower().strip()
+    txt_arr = data.get('arrivee_text', '').lower().strip()
 
-    print(f"🔍 RECHERCHE CLIENT: De '{txt_dep_voyageur}' vers '{txt_arr_voyageur}'")
+    print(f"🔍 DEBUG: Voyageur cherche {txt_dep} -> {txt_arr}")
 
     try:
+        # 1. On prend TOUT ce qu'il y a dans la table active_trips
         active_trips = supabase.table('active_trips').select('*').execute().data
+        
+        # SI CETTE LISTE EST VIDE, LE PROBLEME VIENT DU CHAUFFEUR (GPS)
+        print(f"📊 DEBUG: Il y a {len(active_trips)} chauffeurs en ligne dans la base.")
+
         bus_proches = []
 
         for trip in active_trips:
             driver = supabase.table('drivers').select('*').eq('id', trip['chauffeur_id']).execute().data[0]
             
-            # Ligne du chauffeur (depuis la base de données)
-            ligne_dep = driver.get('ville_depart', '').lower().strip()
-            ligne_arr = driver.get('ville_arrivee', '').lower().strip()
+            l_dep = driver.get('ville_depart', '').lower().strip()
+            l_arr = driver.get('ville_arrivee', '').lower().strip()
             
-            print(f"  > Test Chauffeur {driver['nom_complet']} (Ligne: {ligne_dep} <-> {ligne_arr})")
+            print(f"  👉 Candidat: {driver['nom_complet']} (Ligne: {l_dep}->{l_arr})")
 
-            # --- 1. FILTRE DE LIGNE (Est-ce qu'il fait ce trajet ?) ---
-            match_aller = (ligne_dep == txt_dep_voyageur and ligne_arr == txt_arr_voyageur)
-            match_retour = (ligne_dep == txt_arr_voyageur and ligne_arr == txt_dep_voyageur)
-
-            if not match_aller and not match_retour:
-                print("    ❌ Rejeté : Mauvaise ligne")
-                continue # Ce n'est pas la bonne ligne
-
-            # --- 2. FILTRE DE SENS (CORRIGÉ / PLUS SOUPLE) ---
-            direction_bus = trip.get('direction_actuelle') # Peut être None ou "Inconnue"
+            # --- 🛑 JE DESACTIVE TEMPORAIREMENT LES FILTRES ---
+            # match = (l_dep == txt_dep and l_arr == txt_arr) or (l_dep == txt_arr and l_arr == txt_dep)
+            # if not match:
+            #    print("     ❌ Mauvaise ligne (Mais je l'affiche quand même pour le test)")
             
-            # Si on connait la direction, on vérifie. Sinon (au démarrage), on laisse passer.
-            if direction_bus and direction_bus != "Inconnue":
-                # Si le bus va vers Tizi alors que je veux Alger -> On cache
-                if direction_bus.lower() != txt_arr_voyageur:
-                     print(f"    ❌ Rejeté : Mauvais sens (Va vers {direction_bus})")
-                     continue
-
-            # --- 3. PRÉPARATION ---
-            coord_dep = CITIES_DB.get(ligne_dep)
-            coord_arr = CITIES_DB.get(ligne_arr)
+            # --- PREPARATION DES DONNÉES ---
+            coord_dep = CITIES_DB.get(l_dep)
+            coord_arr = CITIES_DB.get(l_arr)
             
-            # Terminus officiel (si on connait la direction)
-            terminus_coords = None
-            if direction_bus == ligne_arr: terminus_coords = coord_arr
-            elif direction_bus == ligne_dep: terminus_coords = coord_dep
-            
-            # Si pas de direction connue, on prend la destination du voyageur par défaut pour tracer la ligne
-            if not terminus_coords:
-                terminus_coords = CITIES_DB.get(txt_arr_voyageur)
+            # On essaie de deviner le terminus, sinon on met Alger par défaut pour éviter le bug
+            terminus = coord_arr if coord_arr else {'lat': 36.75, 'lon': 3.04}
 
-            # Calcul Distance
             dist_user = 0
             if user_lat and trip['current_lat']:
                 dist_user = haversine(user_lat, user_lon, trip['current_lat'], trip['current_lon'])
 
-            print("    ✅ ACCEPTÉ !")
             bus_proches.append({
                 'bus_id': trip['chauffeur_id'],
-                'chauffeur': driver['nom_complet'],
+                'chauffeur': f"[TEST] {driver['nom_complet']} ({l_dep}-{l_arr})", # J'affiche la ligne dans le nom !
                 'current_lat': trip['current_lat'],
                 'current_lon': trip['current_lon'],
                 'distance_km': dist_user,
-                'direction': direction_bus,
-                'terminus_officiel': terminus_coords,
-                
-                # On envoie aussi les points de la ligne pour le dessin
+                'direction': trip.get('direction_actuelle'),
+                'terminus_officiel': terminus,
                 'ligne_start': coord_dep, 
                 'ligne_end': coord_arr
             })
 
-        bus_proches.sort(key=lambda x: x['distance_km'])
         return jsonify({"bus_proches": bus_proches})
 
     except Exception as e:
-        print(f"🔴 ERREUR CRITIQUE: {e}")
+        print(f"🔴 ERREUR: {e}")
         return jsonify({"bus_proches": []})
 
 if __name__ == '__main__':
 
     app.run(host='0.0.0.0', port=5000, debug=True)
+
 
 
 

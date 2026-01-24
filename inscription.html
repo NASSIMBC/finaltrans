@@ -3,121 +3,189 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inscription</title>
+    <title>Inscription Tizi Transport</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@600;800&display=swap" rel="stylesheet">
     <style>
-        /* Mêmes styles "Taxi App" que le reste */
-        body { font-family: 'Urbanist', sans-serif; background: #000000; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #1e1e1e; padding: 30px; border-radius: 24px; width: 90%; max-width: 400px; border: 1px solid #333; }
-        
-        h3 { margin-top: 0; text-align: center; font-size: 1.5rem; margin-bottom: 25px; }
-        
-        input { 
-            width: 100%; padding: 16px; margin-bottom: 12px; border-radius: 12px; 
-            border: 1px solid #333; background: #2c2c2c; color: white; 
-            box-sizing: border-box; font-family: inherit; font-size: 1rem; outline: none;
-        }
-        input:focus { border-color: #d4fb79; }
+        body { font-family: 'Urbanist', sans-serif; background: #000000; color: white; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .card { background: #1e1e1e; padding: 25px; border-radius: 24px; width: 100%; max-width: 500px; border: 1px solid #333; }
+        h3 { text-align: center; color: #d4fb79; margin-top: 0; }
 
-        button { 
-            width: 100%; padding: 16px; background: #d4fb79; color: black; 
-            border: none; border-radius: 12px; font-weight: 800; font-size: 1.1rem; 
-            cursor: pointer; margin-top: 10px; 
-        }
+        input { width: 100%; padding: 15px; margin-bottom: 10px; border-radius: 12px; border: 1px solid #333; background: #2c2c2c; color: white; box-sizing: border-box; }
         
-        .switch { display: flex; margin-bottom: 25px; background: #2c2c2c; padding: 5px; border-radius: 12px; }
-        .switch div { flex: 1; text-align: center; padding: 12px; cursor: pointer; border-radius: 10px; font-weight: 700; transition: 0.3s; }
+        /* Selecteur Rôle */
+        .switch { display: flex; margin-bottom: 20px; background: #2c2c2c; padding: 5px; border-radius: 12px; }
+        .switch div { flex: 1; text-align: center; padding: 10px; cursor: pointer; border-radius: 10px; transition: 0.3s; font-weight: bold; }
         .active { background: #d4fb79; color: black; }
+
+        /* Carte de sélection */
+        #mapSelection { height: 300px; width: 100%; border-radius: 15px; margin-bottom: 15px; border: 2px solid #333; display: none; }
         
+        .map-controls { display: flex; gap: 10px; margin-bottom: 10px; display: none; }
+        .btn-map { flex: 1; padding: 10px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; opacity: 0.6; }
+        .btn-map.selected { opacity: 1; border: 2px solid white; }
+        .btn-dep { background: #d4fb79; color: black; } /* Vert/Jaune */
+        .btn-arr { background: #ef4444; color: white; } /* Rouge */
+
+        button.main-btn { width: 100%; padding: 16px; background: white; color: black; border: none; border-radius: 12px; font-weight: 800; font-size: 1.1rem; cursor: pointer; margin-top: 15px; }
         .hidden { display: none; }
-        .label-line { font-size: 0.85rem; color: #a1a1aa; margin-bottom: 8px; margin-top: 5px; display: block; }
-        a { color: #d4fb79; text-decoration: none; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h3>Créer un compte</h3>
-        
-        <div class="switch">
-            <div id="btnV" class="active" onclick="setRole('voyageur')">Voyageur</div>
-            <div id="btnC" onclick="setRole('chauffeur')">Chauffeur</div>
-        </div>
 
-        <input type="text" id="nom" placeholder="Nom complet">
-        <input type="tel" id="tel" placeholder="Téléphone">
-        <input type="email" id="email" placeholder="Email">
-        <input type="password" id="password" placeholder="Mot de passe">
-
-        <div id="driverFields" class="hidden">
-            <span class="label-line">Votre ligne habituelle :</span>
-            <input type="text" id="v_depart" placeholder="Ville de Départ (ex: Tizi)">
-            <input type="text" id="v_arrivee" placeholder="Ville d'Arrivée (ex: Alger)">
-            
-            <span class="label-line">Infos Véhicule :</span>
-            <input type="text" id="matricule" placeholder="Matricule">
-            <input type="text" id="modele" placeholder="Modèle Véhicule">
-        </div>
-
-        <button onclick="inscrire()">S'inscrire</button>
-        <p style="text-align:center; font-size:0.9rem; color:#888;">Déjà un compte ? <a href="/connexion">Se connecter</a></p>
+<div class="card">
+    <h3>Créer un compte</h3>
+    
+    <div class="switch">
+        <div id="btnV" class="active" onclick="setRole('voyageur')">Voyageur</div>
+        <div id="btnC" onclick="setRole('chauffeur')">Chauffeur</div>
     </div>
 
-    <script>
-        // 1. DÉCLARATION DE LA VARIABLE GLOBALE (C'est ça qui manquait !)
-        let role = 'voyageur'; 
+    <input type="text" id="nom" placeholder="Nom complet">
+    <input type="tel" id="tel" placeholder="Téléphone">
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Mot de passe">
 
-        function setRole(r) {
-            role = r; // Mise à jour de la variable globale
-            
-            // Gestion visuelle des boutons
-            document.getElementById('btnV').className = r === 'voyageur' ? 'active' : '';
-            document.getElementById('btnC').className = r === 'chauffeur' ? 'active' : '';
-            
-            // Afficher/Masquer les champs chauffeur
-            document.getElementById('driverFields').style.display = r === 'chauffeur' ? 'block' : 'none';
+    <div id="driverFields" class="hidden">
+        <p style="font-size:0.9rem; color:#aaa; margin-bottom:10px;">Configurez votre ligne sur la carte :</p>
+        
+        <div class="map-controls" id="mapControls">
+            <button class="btn-map btn-dep selected" id="btnSelectDep" onclick="setMode('depart')">📍 Point Départ</button>
+            <button class="btn-map btn-arr" id="btnSelectArr" onclick="setMode('arrivee')">🏁 Terminus</button>
+        </div>
+
+        <div id="mapSelection"></div>
+
+        <input type="text" id="v_depart" placeholder="Ville de Départ (Auto)" readonly style="background:#111; color:#d4fb79;">
+        <input type="text" id="v_arrivee" placeholder="Ville d'Arrivée (Auto)" readonly style="background:#111; color:#ef4444;">
+        
+        <input type="hidden" id="dep_lat"><input type="hidden" id="dep_lon">
+        <input type="hidden" id="arr_lat"><input type="hidden" id="arr_lon">
+
+        <input type="text" id="matricule" placeholder="Matricule (ex: 00123-116-15)">
+        <input type="text" id="modele" placeholder="Modèle (ex: Toyota Coaster)">
+    </div>
+
+    <button class="main-btn" onclick="inscrire()">S'inscrire</button>
+    <p style="text-align:center; margin-top:15px; font-size:0.9rem;"><a href="/connexion" style="color:#d4fb79;">Se connecter</a></p>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    let role = 'voyageur';
+    let map, markerDep, markerArr;
+    let modeSelection = 'depart'; // 'depart' ou 'arrivee'
+
+    function setRole(r) {
+        role = r;
+        document.getElementById('btnV').className = r === 'voyageur' ? 'active' : '';
+        document.getElementById('btnC').className = r === 'chauffeur' ? 'active' : '';
+        
+        const driverDiv = document.getElementById('driverFields');
+        const mapDiv = document.getElementById('mapSelection');
+        const controls = document.getElementById('mapControls');
+
+        if(r === 'chauffeur') {
+            driverDiv.style.display = 'block';
+            mapDiv.style.display = 'block';
+            controls.style.display = 'flex';
+            initMap();
+        } else {
+            driverDiv.style.display = 'none';
         }
+    }
 
-        async function inscrire() {
-            // Récupération sécurisée des valeurs
-            const v_depart_elem = document.getElementById('v_depart');
-            const v_arrivee_elem = document.getElementById('v_arrivee');
-            const matricule_elem = document.getElementById('matricule');
-            const modele_elem = document.getElementById('modele');
+    function initMap() {
+        if(map) return; // Déjà initialisée
+        map = L.map('mapSelection').setView([36.72, 4.05], 10); // Centré sur Tizi/Kabylie
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-            const data = {
-                role: role, // Utilisation de la variable globale définie ligne 68
-                nom: document.getElementById('nom').value,
-                tel: document.getElementById('tel').value,
-                email: document.getElementById('email').value,
-                password: document.getElementById('password').value,
-                
-                // On envoie des chaînes vides "" si les champs n'existent pas ou sont vides
-                v_depart: v_depart_elem ? v_depart_elem.value : "",
-                v_arrivee: v_arrivee_elem ? v_arrivee_elem.value : "",
-                matricule: matricule_elem ? matricule_elem.value : "",
-                modele: modele_elem ? modele_elem.value : ""
-            };
+        map.on('click', async function(e) {
+            const lat = e.latlng.lat;
+            const lon = e.latlng.lng;
 
-            try {
-                const res = await fetch('/api/register', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(data)
-                });
+            // Appel API pour trouver le nom de la ville (Reverse Geocoding)
+            const villeNom = await getCityName(lat, lon);
+
+            if(modeSelection === 'depart') {
+                if(markerDep) map.removeLayer(markerDep);
+                markerDep = L.marker([lat, lon], {icon: createIcon('green')}).addTo(map);
                 
-                const result = await res.json();
+                document.getElementById('v_depart').value = villeNom;
+                document.getElementById('dep_lat').value = lat;
+                document.getElementById('dep_lon').value = lon;
                 
-                if (res.ok) {
-                    alert("Compte créé ! Connectez-vous.");
-                    window.location.href = '/connexion';
-                } else {
-                    alert("Erreur: " + result.error);
-                }
-            } catch(e) { 
-                console.error(e); 
-                alert("Erreur de connexion au serveur.");
+                // Passe automatiquement à l'étape suivante
+                setMode('arrivee');
+            } else {
+                if(markerArr) map.removeLayer(markerArr);
+                markerArr = L.marker([lat, lon], {icon: createIcon('red')}).addTo(map);
+                
+                document.getElementById('v_arrivee').value = villeNom;
+                document.getElementById('arr_lat').value = lat;
+                document.getElementById('arr_lon').value = lon;
             }
+        });
+    }
+
+    function setMode(m) {
+        modeSelection = m;
+        document.getElementById('btnSelectDep').className = m === 'depart' ? 'btn-map btn-dep selected' : 'btn-map btn-dep';
+        document.getElementById('btnSelectArr').className = m === 'arrivee' ? 'btn-map btn-arr selected' : 'btn-map btn-arr';
+    }
+
+    function createIcon(color) {
+        const url = color === 'green' 
+            ? 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png'
+            : 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png';
+        return L.icon({ iconUrl: url, iconSize: [25, 41], iconAnchor: [12, 41] });
+    }
+
+    // Utilisation de Nominatim (OpenStreetMap) pour trouver le nom
+    async function getCityName(lat, lon) {
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+            const data = await res.json();
+            // On cherche le meilleur nom possible (Ville, Village, ou Quartier)
+            return data.address.city || data.address.town || data.address.village || data.address.county || "Position Inconnue";
+        } catch(e) {
+            return "Position GPS";
         }
-    </script>
+    }
+
+    async function inscrire() {
+        const data = {
+            role: role,
+            nom: document.getElementById('nom').value,
+            tel: document.getElementById('tel').value,
+            email: document.getElementById('email').value,
+            password: document.getElementById('password').value,
+            
+            // Données Chauffeur
+            v_depart: document.getElementById('v_depart').value,
+            v_arrivee: document.getElementById('v_arrivee').value,
+            matricule: document.getElementById('matricule').value,
+            modele: document.getElementById('modele').value,
+            
+            // COORDONNÉES EXACTES
+            dep_lat: document.getElementById('dep_lat').value,
+            dep_lon: document.getElementById('dep_lon').value,
+            arr_lat: document.getElementById('arr_lat').value,
+            arr_lon: document.getElementById('arr_lon').value
+        };
+
+        const res = await fetch('/api/register', {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        if(res.ok) {
+            alert("Compte créé !");
+            window.location.href = '/connexion';
+        } else {
+            alert("Erreur inscription");
+        }
+    }
+</script>
 </body>
 </html>

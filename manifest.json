@@ -1,0 +1,20 @@
+{
+  "name": "Tizi Transport",
+  "short_name": "TiziBus",
+  "start_url": "/voyageur",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#d4fb79",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/5030/5030991.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/5030/5030991.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

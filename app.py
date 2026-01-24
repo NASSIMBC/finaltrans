@@ -158,64 +158,62 @@ def update_position():
         return jsonify({"status": "updated", "direction": destination_actuelle})
     except Exception as e: return jsonify({"error": str(e)}), 500
 
-# --- API INTELLIGENTE : TROUVER BUS ---
+# --- VERSION DEBUG : AFFICHE TOUT ET EXPLIQUE POURQUOI ---
 @app.route('/api/trouver-bus', methods=['POST'])
 def api_trouver_bus():
     data = request.json
     user_lat = data.get('user_lat')
     user_lon = data.get('user_lon')
     
-    # Ce que le voyageur veut (ex: je suis à Tizi, je vais à Alger)
-    dest_voyageur_txt = data.get('arrivee_text').lower().strip()
+    # On nettoie le texte du voyageur
+    dest_voyageur_txt = data.get('arrivee_text', '').lower().strip()
     
-    # Coordonnées de la destination du voyageur
-    coord_dest_voyageur = CITIES_DB.get(dest_voyageur_txt)
+    print(f"🔍 RECHERCHE VOYAGEUR: Vers '{dest_voyageur_txt}'")
 
     try:
-        # 1. On récupère tous les bus actifs
         active_trips = supabase.table('active_trips').select('*').execute().data
         bus_proches = []
 
         for trip in active_trips:
-            # 2. FILTRE DE DIRECTION : Le bus doit aller vers la même ville que le voyageur
-            # trip['direction_actuelle'] a été calculé automatiquement par l'update_position
-            if trip.get('direction_actuelle') != dest_voyageur_txt:
-                continue # Ce bus va dans l'autre sens, on l'ignore
-
-            # 3. FILTRE "DÉPASSÉ OU PAS"
-            if coord_dest_voyageur and user_lat:
-                # Distance Bus -> Destination
-                d_bus_dest = haversine(trip['current_lat'], trip['current_lon'], coord_dest_voyageur['lat'], coord_dest_voyageur['lon'])
-                # Distance Voyageur -> Destination
-                d_user_dest = haversine(user_lat, user_lon, coord_dest_voyageur['lat'], coord_dest_voyageur['lon'])
-
-                # Si le bus est plus près de l'arrivée que moi, c'est qu'il m'a déjà dépassé !
-                # On ajoute 2km de marge d'erreur GPS
-                if d_bus_dest < (d_user_dest - 2.0):
-                    continue # Bus déjà passé
-
-            # Si on est ici, le bus est bon !
-            # On récupère le nom du chauffeur
-            driver = supabase.table('drivers').select('nom_complet').eq('id', trip['chauffeur_id']).execute().data[0]
+            # Récup Infos Chauffeur
+            driver = supabase.table('drivers').select('*').eq('id', trip['chauffeur_id']).execute().data[0]
             
-            # Distance Bus -> Voyageur (pour le tri)
-            dist_user = haversine(user_lat, user_lon, trip['current_lat'], trip['current_lon'])
+            # DEBUG : On affiche ce que fait ce bus dans la console serveur
+            print(f"  🚌 BUS {driver['nom_complet']} | Direction: {trip.get('direction_actuelle')} | Lat/Lon: {trip['current_lat']}/{trip['current_lon']}")
 
+            # --- TEST 1 : EST-CE QU'IL VA DANS LA BONNE DIRECTION ? ---
+            # Si la direction est "Inconnue", on l'affiche quand même pour le test !
+            direction_bus = trip.get('direction_actuelle', '')
+            
+            # (On désactive temporairement le filtre strict pour voir si le bus apparait)
+            # if direction_bus != dest_voyageur_txt:
+            #    print(f"     ❌ Rejeté : Mauvaise direction ({direction_bus} != {dest_voyageur_txt})")
+            #    continue 
+
+            # --- TEST 2 : EST-CE QU'IL EST TROP LOIN ? ---
+            # Calcul distance Voyageur <-> Bus
+            dist_user = 0
+            if user_lat and trip['current_lat']:
+                dist_user = haversine(user_lat, user_lon, trip['current_lat'], trip['current_lon'])
+            
+            # On ajoute le bus à la liste QUOI QU'IL ARRIVE (pour tester)
             bus_proches.append({
                 'bus_id': trip['chauffeur_id'],
-                'chauffeur': driver['nom_complet'],
+                'chauffeur': driver['nom_complet'] + f" ({direction_bus})", # On affiche la direction dans le nom pour débugger
                 'current_lat': trip['current_lat'],
                 'current_lon': trip['current_lon'],
                 'distance_km': dist_user,
-                'direction': trip['direction_actuelle']
+                'direction': direction_bus
             })
 
+        print(f"✅ Résultat : {len(bus_proches)} bus renvoyés.")
         bus_proches.sort(key=lambda x: x['distance_km'])
         return jsonify({"bus_proches": bus_proches})
 
     except Exception as e:
-        print("Erreur:", e)
+        print(f"🔴 ERREUR API: {e}")
         return jsonify({"bus_proches": []})
 
 if __name__ == '__main__':
+
     app.run(host='0.0.0.0', port=5000, debug=True)

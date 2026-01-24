@@ -203,19 +203,28 @@
             fetchBus();
         }
 
-        // --- DESSINER LE TRAJET (NOUVEAU) ---
+        // --- DESSINER LE TRAJET RESTANT (DYNAMIQUE) ---
         async function afficherTrajet(bus) {
-            // 1. Si une ligne existe déjà, on l'efface
+            
+            // 1. Vérification : Le bus a-t-il un terminus connu ?
+            if (!bus.terminus_officiel) {
+                console.log("Pas de terminus connu pour ce bus (Direction inconnue)");
+                return; 
+            }
+
+            // 2. Nettoyage de l'ancien tracé
             if (currentRouteLayer) {
                 map.removeLayer(currentRouteLayer);
             }
 
-            // 2. On récupère les coords (Départ Ligne -> Arrivée Ligne)
-            // L'API OSRM attend : lon,lat;lon,lat
-            const start = `${bus.ligne_start.lon},${bus.ligne_start.lat}`;
-            const end = `${bus.ligne_end.lon},${bus.ligne_end.lat}`;
+            // 3. CONSTRUCTION DU TRACÉ
+            // DEPART = Position actuelle du bus (Ça change en temps réel !)
+            const start = `${bus.current_lon},${bus.current_lat}`;
             
-            // 3. Appel à OSRM (Service gratuit de routage)
+            // ARRIVÉE = Le terminus officiel vers lequel il va
+            const end = `${bus.terminus_officiel.lon},${bus.terminus_officiel.lat}`;
+            
+            // Appel OSRM (Gratuit)
             const url = `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson`;
 
             try {
@@ -223,18 +232,27 @@
                 const data = await res.json();
 
                 if (data.routes && data.routes.length > 0) {
-                    // 4. On dessine la ligne bleue
                     const routeGeoJSON = data.routes[0].geometry;
                     
+                    // On dessine la ligne
                     currentRouteLayer = L.geoJSON(routeGeoJSON, {
-                        style: { color: "#d4fb79", weight: 5, opacity: 0.8 } // Jaune néon style Taxi
+                        style: { color: "#d4fb79", weight: 6, opacity: 0.9 } // Jaune Néon bien visible
                     }).addTo(map);
 
-                    // 5. On zoome pour voir tout le trajet
+                    // On ajoute un petit drapeau à l'arrivée pour faire "GPS"
+                    L.marker([bus.terminus_officiel.lat, bus.terminus_officiel.lon], {
+                        icon: L.divIcon({
+                            className: 'terminus-flag',
+                            html: '<i class="fas fa-flag-checkered" style="color:white; font-size:20px;"></i>',
+                            iconSize: [20, 20]
+                        })
+                    }).addTo(map);
+
+                    // On cadre la vue pour voir le Bus ET le Terminus
                     map.fitBounds(currentRouteLayer.getBounds(), { padding: [50, 50] });
                 }
             } catch (e) {
-                console.error("Erreur trajet:", e);
+                console.error("Erreur tracé:", e);
             }
         }
 
@@ -302,4 +320,5 @@
     </script>
 </body>
 </html>
+
 

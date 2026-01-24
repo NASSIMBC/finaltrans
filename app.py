@@ -165,7 +165,6 @@ def api_trouver_bus():
     user_lon = data.get('user_lon')
 
     # --- FONCTION DE NETTOYAGE ---
-    # Enlève les tirets et espaces inutiles pour faciliter la comparaison
     def clean_text(t):
         if not t: return ""
         return t.lower().replace('-', ' ').strip()
@@ -199,28 +198,23 @@ def api_trouver_bus():
 
             # --- 2. FILTRE STRICT ---
             if recherche_active:
-                # Par défaut, on suppose que ça ne matche pas
                 is_match_aller = True
                 is_match_retour = True
 
-                # TEST SENS ALLER (Ligne Dep -> Ligne Arr)
-                # Si l'utilisateur a écrit un départ, est-ce qu'il est dans le départ du chauffeur ?
+                # TEST SENS ALLER
                 if has_dep and txt_dep not in l_dep: is_match_aller = False
-                # Si l'utilisateur a écrit une arrivée, est-ce qu'elle est dans l'arrivée du chauffeur ?
                 if has_arr and txt_arr not in l_arr: is_match_aller = False
 
-                # TEST SENS RETOUR (Ligne Arr -> Ligne Dep)
+                # TEST SENS RETOUR
                 if has_dep and txt_dep not in l_arr: is_match_retour = False
                 if has_arr and txt_arr not in l_dep: is_match_retour = False
 
-                # Si le bus ne correspond NI à l'aller NI au retour -> On le cache
                 if not is_match_aller and not is_match_retour:
                     continue 
 
             # --- 3. LOGIQUE TERMINUS & DONNÉES ---
-            # On cherche les coordonnées (en essayant de gérer les noms partiels)
             coord_dep = CITIES_DB.get(l_dep)
-            if not coord_dep: # Tentative de rattrapage
+            if not coord_dep: 
                 for k in CITIES_DB: 
                     if k in l_dep: coord_dep = CITIES_DB[k]; break
             
@@ -251,6 +245,10 @@ def api_trouver_bus():
             bus_proches.append({
                 'bus_id': trip['chauffeur_id'],
                 'chauffeur': driver['nom_complet'],
+                # --- AJOUT DES INFOS VÉHICULE ICI ---
+                'modele': driver.get('modele_vehicule', 'Bus'),
+                'matricule': driver.get('matricule_vehicule', ''),
+                # ------------------------------------
                 'current_lat': trip['current_lat'],
                 'current_lon': trip['current_lon'],
                 'distance_km': round(dist_user, 1),
@@ -265,11 +263,12 @@ def api_trouver_bus():
 
     except Exception as e:
         print(f"🔴 ERREUR: {e}")
-        return jsonify({"bus_proches": []})
+        return jsonify({"bus_proches": []})[]})
 
 if __name__ == '__main__':
 
     app.run(host='0.0.0.0', port=5000, debug=True)
+
 
 
 

@@ -151,10 +151,10 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-   <script>
-        const SERVER_URL = "https://finaltrans.onrender.com"; // REMETTEZ VOTRE LIEN RENDER ICI
+    <script>
+        const SERVER_URL = "https://finaltrans.onrender.com"; // VERIFIEZ QUE C'EST LE BON LIEN
         let rechercheActive = false;
-        let currentRouteLayer = null; // Pour stocker la ligne bleue actuelle
+        let currentRouteLayer = null; 
 
         // Session
         const session = JSON.parse(localStorage.getItem('user_session'));
@@ -192,22 +192,19 @@
             document.getElementById('searchOverlay').classList.toggle('active');
         }
 
-    function lancerRecherche() {
+        function lancerRecherche() {
             const dep = document.getElementById('txtDepart').value;
             const arr = document.getElementById('txtArrivee').value;
             
-            // --- NOUVEAU : NETTOYAGE DE LA CARTE ---
-            // 1. On efface le trait jaune s'il existe
+            // 1. Nettoyage Trajet
             if (currentRouteLayer) {
                 map.removeLayer(currentRouteLayer);
                 currentRouteLayer = null;
             }
-            // 2. On efface le drapeau du terminus s'il existe (les éléments avec la classe terminus-flag)
+            // 2. Nettoyage Drapeaux Terminus
             document.querySelectorAll('.leaflet-marker-icon .terminus-flag').forEach(el => {
-                // Cette astuce supprime les marqueurs HTML personnalisés
                 el.parentElement.remove(); 
             });
-            // ---------------------------------------
 
             if(!dep && !arr) return alert("Veuillez remplir au moins une ville !");
 
@@ -215,26 +212,22 @@
             document.getElementById('searchOverlay').classList.remove('active');
             document.getElementById('resultsSheet').classList.add('active');
             
-            // On vide la liste temporairement pour montrer que ça charge
             document.getElementById('busList').innerHTML = '<div style="text-align:center; padding:20px; color:#64748b;">Recherche en cours...</div>';
             
             fetchBus();
         }
 
-      async function afficherTrajet(bus) {
-            // 1. Vérification
+        async function afficherTrajet(bus) {
             if (!bus.terminus_officiel) {
                 console.log("Pas de terminus connu");
                 return; 
             }
 
-            // 2. NETTOYAGE OBLIGATOIRE AVANT DE DESSINER
             if (currentRouteLayer) {
                 map.removeLayer(currentRouteLayer);
                 currentRouteLayer = null;
             }
 
-            // 3. Construction du tracé
             const start = `${bus.current_lon},${bus.current_lat}`;
             const end = `${bus.terminus_officiel.lon},${bus.terminus_officiel.lat}`;
             const url = `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson`;
@@ -245,13 +238,10 @@
 
                 if (data.routes && data.routes.length > 0) {
                     const routeGeoJSON = data.routes[0].geometry;
-                    
-                    // On dessine la nouvelle ligne
                     currentRouteLayer = L.geoJSON(routeGeoJSON, {
                         style: { color: "#d4fb79", weight: 6, opacity: 0.9 }
                     }).addTo(map);
 
-                    // On zoome sur le trajet
                     map.fitBounds(currentRouteLayer.getBounds(), { padding: [50, 50] });
                 }
             } catch (e) {
@@ -259,7 +249,7 @@
             }
         }
 
-// --- RECUPERATION BUS (VERSION AVEC MATRICULE & MODELE) ---
+        // --- RECUPERATION BUS ---
         async function fetchBus() {
             if(!rechercheActive) return;
             
@@ -268,7 +258,6 @@
             const arr = document.getElementById('txtArrivee').value;
 
             try {
-                // On envoie bien depart_text ET arrivee_text
                 const res = await fetch(SERVER_URL + '/api/trouver-bus', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ 
@@ -282,16 +271,15 @@
                 
                 container.innerHTML = '';
                 
-                // Nettoyage des anciens marqueurs
+                // Nettoyage marqueurs bus
                 for(let id in busMarkers) map.removeLayer(busMarkers[id]);
                 busMarkers = {};
 
                 if(data.bus_proches && data.bus_proches.length > 0) {
                     data.bus_proches.forEach(bus => {
-                        // 1. MARQUEUR SUR LA CARTE
+                        // Marqueur
                         const m = L.marker([bus.current_lat, bus.current_lon], {icon: iconBus}).addTo(map);
                         
-                        // Bulle d'info (Popup) avec Matricule
                         m.bindPopup(`
                             <div style="text-align:center; color:black; font-family:sans-serif;">
                                 <strong>${bus.chauffeur}</strong><br>
@@ -300,14 +288,11 @@
                             </div>
                         `);
                         
-                        // Clic sur le marqueur
-                        m.on('click', () => { 
-                            afficherTrajet(bus); 
-                        });
+                        m.on('click', () => { afficherTrajet(bus); });
 
                         busMarkers[bus.bus_id] = m;
 
-                        // 2. ELEMENT DANS LA LISTE
+                        // Liste
                         const div = document.createElement('div');
                         div.className = 'bus-item';
                         div.innerHTML = `
@@ -324,11 +309,10 @@
                             <div class="bus-dist"><i class="fas fa-chevron-right"></i></div>
                         `;
                         
-                        // Clic sur la liste
                         div.onclick = () => {
                             afficherTrajet(bus);
                             map.setView([bus.current_lat, bus.current_lon], 16);
-                            m.openPopup(); // Ouvre la bulle
+                            m.openPopup();
                         };
                         container.appendChild(div);
                     });
@@ -338,9 +322,10 @@
 
             } catch(e) { console.error(e); }
         }
+
+        // IMPORTANT : La boucle qui fait bouger les bus !
+        setInterval(fetchBus, 5000);
+
+    </script>
 </body>
 </html>
-
-
-
-

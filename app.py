@@ -76,26 +76,41 @@ def register():
                     'id': uid,
                     'nom_complet': data.get('nom'),
                     'telephone': data.get('tel'),
+                    'matricule_ve@app.route('/api/register', methods=['POST'])
+def register():
+    data = request.json
+    role = data.get('role')
+    email = data.get('email')
+    password = data.get('password')
+    
+    try:
+        auth = supabase.auth.sign_up({"email": email, "password": password})
+        if auth.user:
+            uid = auth.user.id
+            if role == 'chauffeur':
+                supabase.table('drivers').insert({
+                    'id': uid,
+                    'nom_complet': data.get('nom'),
+                    'telephone': data.get('tel'),
+                    'ville_depart': data.get('v_depart', '').lower().strip(), # Nom détecté auto
+                    'ville_arrivee': data.get('v_arrivee', '').lower().strip(), # Nom détecté auto
                     'matricule_vehicule': data.get('matricule'),
                     'modele_vehicule': data.get('modele'),
-                    # On utilise les variables sécurisées
-                    'ville_depart': v_dep.lower().strip(),
-                    'ville_arrivee': v_arr.lower().strip()
+                    # --- NOUVEAU : SAUVEGARDE GPS EXACT ---
+                    'dep_lat': data.get('dep_lat'),
+                    'dep_lon': data.get('dep_lon'),
+                    'arr_lat': data.get('arr_lat'),
+                    'arr_lon': data.get('arr_lon')
                 }).execute()
             else:
                 supabase.table('passengers').insert({
-                    'id': uid, 
-                    'nom_complet': data.get('nom'), 
-                    'telephone': data.get('tel')
+                    'id': uid, 'nom_complet': data.get('nom'), 'telephone': data.get('tel')
                 }).execute()
-                
-            return jsonify({"status": "success", "id": uid})
-        
-        return jsonify({"error": "Echec de l'authentification Supabase"}), 400
-
+            return jsonify({"status": "success"})
+        return jsonify({"error": "Auth failed"}), 400
     except Exception as e:
-        print(f"🔴 ERREUR SERVEUR: {str(e)}") # Affiche l'erreur réelle dans votre terminal noir
-        return jsonify({"error": f"Erreur interne: {str(e)}"}), 500
+        print(e)
+        return jsonify({"error": str(e)}), 500
 
 # --- API CONNEXION ---
 @app.route('/api/login', methods=['POST'])
@@ -192,7 +207,7 @@ def api_trouver_bus():
                 driver = driver_req.data[0]
             except: continue
 
-            # Ligne du chauffeur nettoyée
+            # Ligne du chauffeur nettoyée (pour le filtre textuel)
             l_dep = clean_text(driver.get('ville_depart', ''))
             l_arr = clean_text(driver.get('ville_arrivee', ''))
 
@@ -212,17 +227,31 @@ def api_trouver_bus():
                 if not is_match_aller and not is_match_retour:
                     continue 
 
-            # --- 3. LOGIQUE TERMINUS & DONNÉES ---
-            coord_dep = CITIES_DB.get(l_dep)
-            if not coord_dep: 
-                for k in CITIES_DB: 
-                    if k in l_dep: coord_dep = CITIES_DB[k]; break
+            # --- 3. LOGIQUE COORDONNÉES (NOUVEAU SYSTÈME HYBRIDE) ---
             
-            coord_arr = CITIES_DB.get(l_arr)
-            if not coord_arr:
-                for k in CITIES_DB:
-                    if k in l_arr: coord_arr = CITIES_DB[k]; break
+            # A. On essaie d'abord les COORDONNÉES EXACTES du chauffeur (Inscription Carte)
+            coord_dep = None
+            if driver.get('dep_lat') and driver.get('dep_lon'):
+                coord_dep = {'lat': driver['dep_lat'], 'lon': driver['dep_lon']}
 
+            coord_arr = None
+            if driver.get('arr_lat') and driver.get('arr_lon'):
+                coord_arr = {'lat': driver['arr_lat'], 'lon': driver['arr_lon']}
+
+            # B. Si le chauffeur n'a pas de GPS enregistré (Vieux compte), on utilise CITIES_DB (Secours)
+            if not coord_dep: 
+                coord_dep = CITIES_DB.get(l_dep)
+                if not coord_dep: # Tentative floue
+                    for k in CITIES_DB: 
+                        if k in l_dep: coord_dep = CITIES_DB[k]; break
+            
+            if not coord_arr:
+                coord_arr = CITIES_DB.get(l_arr)
+                if not coord_arr:
+                    for k in CITIES_DB:
+                        if k in l_arr: coord_arr = CITIES_DB[k]; break
+
+            # --- 4. LOGIQUE TERMINUS ---
             direction = trip.get('direction_actuelle')
             terminus_officiel = None
             
@@ -232,7 +261,7 @@ def api_trouver_bus():
                 if d_clean in l_arr: terminus_officiel = coord_arr
                 elif d_clean in l_dep: terminus_officiel = coord_dep
             
-            # Si direction inconnue, on devine selon la recherche
+            # Si direction inconnue, on devine selon la recherche du voyageur
             if not terminus_officiel and recherche_active:
                 if has_arr and txt_arr in l_arr: terminus_officiel = coord_arr
                 elif has_arr and txt_arr in l_dep: terminus_officiel = coord_dep
@@ -245,10 +274,8 @@ def api_trouver_bus():
             bus_proches.append({
                 'bus_id': trip['chauffeur_id'],
                 'chauffeur': driver['nom_complet'],
-                # --- AJOUT DES INFOS VÉHICULE ICI ---
                 'modele': driver.get('modele_vehicule', 'Bus'),
                 'matricule': driver.get('matricule_vehicule', ''),
-                # ------------------------------------
                 'current_lat': trip['current_lat'],
                 'current_lon': trip['current_lon'],
                 'distance_km': round(dist_user, 1),
@@ -263,8 +290,9 @@ def api_trouver_bus():
 
     except Exception as e:
         print(f"🔴 ERREUR: {e}")
-        return jsonify({"bus_proches": []})[]})
+        return jsonify({"bus_proches": []})
 
 if __name__ == '__main__':
 
     app.run(host='0.0.0.0', port=5000, debug=True)
+

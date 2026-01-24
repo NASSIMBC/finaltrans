@@ -158,62 +158,64 @@ def update_position():
         return jsonify({"status": "updated", "direction": destination_actuelle})
     except Exception as e: return jsonify({"error": str(e)}), 500
 
-# --- VERSION DEBUG : AFFICHE TOUT ET EXPLIQUE POURQUOI ---
+# --- VERSION AVEC COORDONNÉES DE TRAJET ---
 @app.route('/api/trouver-bus', methods=['POST'])
 def api_trouver_bus():
     data = request.json
     user_lat = data.get('user_lat')
     user_lon = data.get('user_lon')
-    
-    # On nettoie le texte du voyageur
     dest_voyageur_txt = data.get('arrivee_text', '').lower().strip()
     
-    print(f"🔍 RECHERCHE VOYAGEUR: Vers '{dest_voyageur_txt}'")
+    # Coordonnées de la destination du voyageur (pour le filtre "dépassé")
+    coord_dest_voyageur = CITIES_DB.get(dest_voyageur_txt)
 
     try:
         active_trips = supabase.table('active_trips').select('*').execute().data
         bus_proches = []
 
         for trip in active_trips:
-            # Récup Infos Chauffeur
+            # 1. Récupérer infos chauffeur
             driver = supabase.table('drivers').select('*').eq('id', trip['chauffeur_id']).execute().data[0]
             
-            # DEBUG : On affiche ce que fait ce bus dans la console serveur
-            print(f"  🚌 BUS {driver['nom_complet']} | Direction: {trip.get('direction_actuelle')} | Lat/Lon: {trip['current_lat']}/{trip['current_lon']}")
-
-            # --- TEST 1 : EST-CE QU'IL VA DANS LA BONNE DIRECTION ? ---
-            # Si la direction est "Inconnue", on l'affiche quand même pour le test !
-            direction_bus = trip.get('direction_actuelle', '')
+            # 2. Récupérer les coordonnées de SA ligne (Départ -> Arrivée)
+            v_dep_nom = driver.get('ville_depart')
+            v_arr_nom = driver.get('ville_arrivee')
             
-            # (On désactive temporairement le filtre strict pour voir si le bus apparait)
-            # if direction_bus != dest_voyageur_txt:
-            #    print(f"     ❌ Rejeté : Mauvaise direction ({direction_bus} != {dest_voyageur_txt})")
-            #    continue 
+            coord_dep = CITIES_DB.get(v_dep_nom) # ex: Tizi
+            coord_arr = CITIES_DB.get(v_arr_nom) # ex: Alger
 
-            # --- TEST 2 : EST-CE QU'IL EST TROP LOIN ? ---
-            # Calcul distance Voyageur <-> Bus
+            # On ignore les chauffeurs dont on ne connait pas les villes (pas dans CITIES_DB)
+            if not coord_dep or not coord_arr: continue
+
+            # --- FILTRES (Direction & Distance) ---
+            # (Remettez ici vos filtres de direction si vous les aviez activés)
+            
+            # Calcul distance Voyageur
             dist_user = 0
-            if user_lat and trip['current_lat']:
+            if user_lat:
                 dist_user = haversine(user_lat, user_lon, trip['current_lat'], trip['current_lon'])
-            
-            # On ajoute le bus à la liste QUOI QU'IL ARRIVE (pour tester)
+
             bus_proches.append({
                 'bus_id': trip['chauffeur_id'],
-                'chauffeur': driver['nom_complet'] + f" ({direction_bus})", # On affiche la direction dans le nom pour débugger
+                'chauffeur': driver['nom_complet'],
                 'current_lat': trip['current_lat'],
                 'current_lon': trip['current_lon'],
                 'distance_km': dist_user,
-                'direction': direction_bus
+                'direction': trip.get('direction_actuelle'),
+                
+                # --- NOUVEAU : ON ENVOIE LES COORDONNÉES DE LA LIGNE ---
+                'ligne_start': coord_dep, # {lat: ..., lon: ...}
+                'ligne_end': coord_arr    # {lat: ..., lon: ...}
             })
 
-        print(f"✅ Résultat : {len(bus_proches)} bus renvoyés.")
         bus_proches.sort(key=lambda x: x['distance_km'])
         return jsonify({"bus_proches": bus_proches})
 
     except Exception as e:
-        print(f"🔴 ERREUR API: {e}")
+        print(f"🔴 ERREUR: {e}")
         return jsonify({"bus_proches": []})
 
 if __name__ == '__main__':
 
     app.run(host='0.0.0.0', port=5000, debug=True)
+

@@ -259,38 +259,55 @@
             }
         }
 
-        // --- RECUPERATION BUS ---
+// --- RECUPERATION BUS (VERSION AVEC MATRICULE & MODELE) ---
         async function fetchBus() {
             if(!rechercheActive) return;
+            
             const container = document.getElementById('busList');
             const dep = document.getElementById('txtDepart').value;
             const arr = document.getElementById('txtArrivee').value;
 
             try {
+                // On envoie bien depart_text ET arrivee_text
                 const res = await fetch(SERVER_URL + '/api/trouver-bus', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ user_lat: userLat, user_lon: userLon, arrivee_text: arr })
+                    body: JSON.stringify({ 
+                        user_lat: userLat, 
+                        user_lon: userLon, 
+                        depart_text: dep, 
+                        arrivee_text: arr 
+                    })
                 });
                 const data = await res.json();
                 
                 container.innerHTML = '';
-                // On nettoie les marqueurs sauf celui du user
+                
+                // Nettoyage des anciens marqueurs
                 for(let id in busMarkers) map.removeLayer(busMarkers[id]);
                 busMarkers = {};
 
                 if(data.bus_proches && data.bus_proches.length > 0) {
                     data.bus_proches.forEach(bus => {
-                        // Marqueur sur la carte
+                        // 1. MARQUEUR SUR LA CARTE
                         const m = L.marker([bus.current_lat, bus.current_lon], {icon: iconBus}).addTo(map);
                         
-                        // CLIC SUR LE MARQUEUR => DESSINE LE TRAJET
-                        m.on('click', () => {
-                            afficherTrajet(bus);
+                        // Bulle d'info (Popup) avec Matricule
+                        m.bindPopup(`
+                            <div style="text-align:center; color:black; font-family:sans-serif;">
+                                <strong>${bus.chauffeur}</strong><br>
+                                <span style="font-size:0.9rem;">${bus.modele}</span><br>
+                                <span style="background:#facc15; padding:2px 5px; border-radius:3px; font-weight:bold; font-size:0.8rem;">${bus.matricule}</span>
+                            </div>
+                        `);
+                        
+                        // Clic sur le marqueur
+                        m.on('click', () => { 
+                            afficherTrajet(bus); 
                         });
 
                         busMarkers[bus.bus_id] = m;
 
-                        // Element dans la liste
+                        // 2. ELEMENT DANS LA LISTE
                         const div = document.createElement('div');
                         div.className = 'bus-item';
                         div.innerHTML = `
@@ -299,30 +316,31 @@
                             </div>
                             <div class="bus-info">
                                 <div class="bus-name">${bus.chauffeur}</div>
-                                <div class="bus-sub">${bus.distance_km} km • Vers ${bus.direction || '?'}</div>
+                                <div style="color:#d4fb79; font-size:0.85rem; font-weight:bold;">
+                                    ${bus.modele} • <span style="background:rgba(212, 251, 121, 0.2); padding:1px 6px; border-radius:4px;">${bus.matricule}</span>
+                                </div>
+                                <div class="bus-sub">${bus.distance_km} km</div>
                             </div>
                             <div class="bus-dist"><i class="fas fa-chevron-right"></i></div>
                         `;
                         
-                        // CLIC SUR LA LISTE => DESSINE LE TRAJET
+                        // Clic sur la liste
                         div.onclick = () => {
                             afficherTrajet(bus);
-                            // On centre aussi sur le bus
-                            map.setView([bus.current_lat, bus.current_lon], 14);
+                            map.setView([bus.current_lat, bus.current_lon], 16);
+                            m.openPopup(); // Ouvre la bulle
                         };
                         container.appendChild(div);
                     });
                 } else {
-                    container.innerHTML = '<div style="padding:20px; text-align:center; color:#888;">Aucun bus trouvé.</div>';
+                    container.innerHTML = '<div style="padding:20px; text-align:center; color:#888;">Aucun bus trouvé pour ce trajet.</div>';
                 }
 
             } catch(e) { console.error(e); }
         }
-
-        setInterval(fetchBus, 5000);
-    </script>
 </body>
 </html>
+
 
 
 

@@ -176,6 +176,15 @@ def update_position():
         return jsonify({"status": "updated", "direction": destination_actuelle})
     except Exception as e: return jsonify({"error": str(e)}), 500
 
+# Ajoutez ceci avec les autres routes statiques
+@app.route('/manifest.json')
+def serve_manifest():
+    return send_from_directory('.', 'manifest.json')
+
+@app.route('/sw.js')
+def serve_sw():
+    return send_from_directory('.', 'sw.js')
+
 # --- API 4 : TROUVER BUS (INTELLIGENTE) ---
 @app.route('/api/trouver-bus', methods=['POST'])
 def api_trouver_bus():
@@ -289,3 +298,4 @@ def api_trouver_bus():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+

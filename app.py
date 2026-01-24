@@ -164,36 +164,56 @@ def api_trouver_bus():
     user_lat = data.get('user_lat')
     user_lon = data.get('user_lon')
     
-    # Texte recherché par le voyageur (nettoyé)
-    dest_voyageur_txt = data.get('arrivee_text', '').lower().strip()
+    # 1. On récupère ce que le voyageur a écrit (nettoyé en minuscule)
+    txt_dep_voyageur = data.get('depart_text', '').lower().strip()
+    txt_arr_voyageur = data.get('arrivee_text', '').lower().strip()
+
+    print(f"🔍 RECHERCHE: De '{txt_dep_voyageur}' vers '{txt_arr_voyageur}'")
 
     try:
         active_trips = supabase.table('active_trips').select('*').execute().data
         bus_proches = []
 
         for trip in active_trips:
-            # 1. Infos Chauffeur
+            # Récup infos chauffeur
             driver = supabase.table('drivers').select('*').eq('id', trip['chauffeur_id']).execute().data[0]
             
-            # 2. Villes de la ligne
-            v_dep_nom = driver.get('ville_depart', '').lower().strip()
-            v_arr_nom = driver.get('ville_arrivee', '').lower().strip()
+            # Villes de la ligne du chauffeur
+            ligne_dep = driver.get('ville_depart', '').lower().strip()
+            ligne_arr = driver.get('ville_arrivee', '').lower().strip()
             
-            coord_dep = CITIES_DB.get(v_dep_nom)
-            coord_arr = CITIES_DB.get(v_arr_nom)
+            # --- 🛑 FILTRE DE LIGNE STRICT ---
+            # On vérifie si le chauffeur travaille sur la ligne demandée (dans un sens ou l'autre)
+            # Ex: Si voyageur veut A->B, le chauffeur doit faire A-B ou B-A.
+            est_sur_la_ligne = False
+            
+            # Cas 1: Le chauffeur fait exactement A -> B
+            if ligne_dep == txt_dep_voyageur and ligne_arr == txt_arr_voyageur:
+                est_sur_la_ligne = True
+            # Cas 2: Le chauffeur fait le retour B -> A
+            elif ligne_dep == txt_arr_voyageur and ligne_arr == txt_dep_voyageur:
+                est_sur_la_ligne = True
+                
+            if not est_sur_la_ligne:
+                # Ce bus ne fait pas cette ligne, on le saute !
+                continue
 
-            # 3. DÉTERMINER LE TERMINUS EXACT (Où va le bus ?)
-            direction_actuelle = trip.get('direction_actuelle')
+            # --- 🛑 FILTRE DE SENS (OPTIONNEL MAIS RECOMMANDÉ) ---
+            # Si le voyageur veut aller à "Alger", le bus doit aller vers "Alger"
+            direction_bus = trip.get('direction_actuelle', '').lower()
+            if direction_bus != txt_arr_voyageur:
+                 continue # Le bus va dans le mauvais sens
+
+            # --- PREPARATION DES DONNÉES ---
+            coord_dep = CITIES_DB.get(ligne_dep)
+            coord_arr = CITIES_DB.get(ligne_arr)
+            
+            # Terminus officiel (pour le tracé jaune)
             terminus_coords = None
+            if direction_bus == ligne_arr: terminus_coords = coord_arr
+            elif direction_bus == ligne_dep: terminus_coords = coord_dep
 
-            # Si le bus va vers l'Arrivée (ex: Alger), le terminus est coord_arr
-            if direction_actuelle == v_arr_nom:
-                terminus_coords = coord_arr
-            # Si le bus va vers le Départ (ex: Tizi), le terminus est coord_dep
-            elif direction_actuelle == v_dep_nom:
-                terminus_coords = coord_dep
-
-            # 4. Calcul Distance pour le tri
+            # Calcul Distance
             dist_user = 0
             if user_lat and trip['current_lat']:
                 dist_user = haversine(user_lat, user_lon, trip['current_lat'], trip['current_lon'])
@@ -204,10 +224,8 @@ def api_trouver_bus():
                 'current_lat': trip['current_lat'],
                 'current_lon': trip['current_lon'],
                 'distance_km': dist_user,
-                'direction': direction_actuelle,
-                
-                # C'est ici la magie : on envoie les coords du Terminus visé
-                'terminus_officiel': terminus_coords 
+                'direction': trip.get('direction_actuelle'),
+                'terminus_officiel': terminus_coords
             })
 
         bus_proches.sort(key=lambda x: x['distance_km'])
@@ -220,5 +238,6 @@ def api_trouver_bus():
 if __name__ == '__main__':
 
     app.run(host='0.0.0.0', port=5000, debug=True)
+
 
 

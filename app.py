@@ -158,41 +158,44 @@ def update_position():
         return jsonify({"status": "updated", "direction": destination_actuelle})
     except Exception as e: return jsonify({"error": str(e)}), 500
 
-# --- VERSION AVEC COORDONNÉES DE TRAJET ---
 @app.route('/api/trouver-bus', methods=['POST'])
 def api_trouver_bus():
     data = request.json
     user_lat = data.get('user_lat')
     user_lon = data.get('user_lon')
-    dest_voyageur_txt = data.get('arrivee_text', '').lower().strip()
     
-    # Coordonnées de la destination du voyageur (pour le filtre "dépassé")
-    coord_dest_voyageur = CITIES_DB.get(dest_voyageur_txt)
+    # Texte recherché par le voyageur (nettoyé)
+    dest_voyageur_txt = data.get('arrivee_text', '').lower().strip()
 
     try:
         active_trips = supabase.table('active_trips').select('*').execute().data
         bus_proches = []
 
         for trip in active_trips:
-            # 1. Récupérer infos chauffeur
+            # 1. Infos Chauffeur
             driver = supabase.table('drivers').select('*').eq('id', trip['chauffeur_id']).execute().data[0]
             
-            # 2. Récupérer les coordonnées de SA ligne (Départ -> Arrivée)
-            v_dep_nom = driver.get('ville_depart')
-            v_arr_nom = driver.get('ville_arrivee')
+            # 2. Villes de la ligne
+            v_dep_nom = driver.get('ville_depart', '').lower().strip()
+            v_arr_nom = driver.get('ville_arrivee', '').lower().strip()
             
-            coord_dep = CITIES_DB.get(v_dep_nom) # ex: Tizi
-            coord_arr = CITIES_DB.get(v_arr_nom) # ex: Alger
+            coord_dep = CITIES_DB.get(v_dep_nom)
+            coord_arr = CITIES_DB.get(v_arr_nom)
 
-            # On ignore les chauffeurs dont on ne connait pas les villes (pas dans CITIES_DB)
-            if not coord_dep or not coord_arr: continue
+            # 3. DÉTERMINER LE TERMINUS EXACT (Où va le bus ?)
+            direction_actuelle = trip.get('direction_actuelle')
+            terminus_coords = None
 
-            # --- FILTRES (Direction & Distance) ---
-            # (Remettez ici vos filtres de direction si vous les aviez activés)
-            
-            # Calcul distance Voyageur
+            # Si le bus va vers l'Arrivée (ex: Alger), le terminus est coord_arr
+            if direction_actuelle == v_arr_nom:
+                terminus_coords = coord_arr
+            # Si le bus va vers le Départ (ex: Tizi), le terminus est coord_dep
+            elif direction_actuelle == v_dep_nom:
+                terminus_coords = coord_dep
+
+            # 4. Calcul Distance pour le tri
             dist_user = 0
-            if user_lat:
+            if user_lat and trip['current_lat']:
                 dist_user = haversine(user_lat, user_lon, trip['current_lat'], trip['current_lon'])
 
             bus_proches.append({
@@ -201,11 +204,10 @@ def api_trouver_bus():
                 'current_lat': trip['current_lat'],
                 'current_lon': trip['current_lon'],
                 'distance_km': dist_user,
-                'direction': trip.get('direction_actuelle'),
+                'direction': direction_actuelle,
                 
-                # --- NOUVEAU : ON ENVOIE LES COORDONNÉES DE LA LIGNE ---
-                'ligne_start': coord_dep, # {lat: ..., lon: ...}
-                'ligne_end': coord_arr    # {lat: ..., lon: ...}
+                # C'est ici la magie : on envoie les coords du Terminus visé
+                'terminus_officiel': terminus_coords 
             })
 
         bus_proches.sort(key=lambda x: x['distance_km'])
@@ -218,4 +220,5 @@ def api_trouver_bus():
 if __name__ == '__main__':
 
     app.run(host='0.0.0.0', port=5000, debug=True)
+
 

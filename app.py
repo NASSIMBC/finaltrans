@@ -163,15 +163,23 @@ def api_trouver_bus():
     data = request.json
     user_lat = data.get('user_lat')
     user_lon = data.get('user_lon')
-    
-    # 1. Récupération des textes (nettoyés)
-    txt_dep = data.get('depart_text', '').lower().strip()
-    txt_arr = data.get('arrivee_text', '').lower().strip()
 
-    # On vérifie si le voyageur a tapé quelque chose
-    recherche_active = (len(txt_dep) > 0 and len(txt_arr) > 0)
+    # --- FONCTION DE NETTOYAGE ---
+    # Enlève les tirets et espaces inutiles pour faciliter la comparaison
+    def clean_text(t):
+        if not t: return ""
+        return t.lower().replace('-', ' ').strip()
 
-    print(f"🔍 RECHERCHE: '{txt_dep}' -> '{txt_arr}'")
+    # 1. Récupération des textes
+    txt_dep = clean_text(data.get('depart_text', ''))
+    txt_arr = clean_text(data.get('arrivee_text', ''))
+
+    # On vérifie si au moins UN des champs est rempli
+    has_dep = len(txt_dep) > 0
+    has_arr = len(txt_arr) > 0
+    recherche_active = (has_dep or has_arr)
+
+    print(f"🔍 RECHERCHE: '{txt_dep}' -> '{txt_arr}' (Filtre actif: {recherche_active})")
 
     try:
         active_trips = supabase.table('active_trips').select('*').execute().data
@@ -179,43 +187,61 @@ def api_trouver_bus():
 
         for trip in active_trips:
             # Infos Chauffeur
-            driver = supabase.table('drivers').select('*').eq('id', trip['chauffeur_id']).execute().data[0]
-            
-            # Ligne du chauffeur (ex: tizi ouzou -> alger)
-            l_dep = driver.get('ville_depart', '').lower().strip()
-            l_arr = driver.get('ville_arrivee', '').lower().strip()
-            
-            # --- 2. FILTRE INTELLIGENT (SOUPLE) ---
+            try:
+                driver_req = supabase.table('drivers').select('*').eq('id', trip['chauffeur_id']).execute()
+                if not driver_req.data: continue
+                driver = driver_req.data[0]
+            except: continue
+
+            # Ligne du chauffeur nettoyée
+            l_dep = clean_text(driver.get('ville_depart', ''))
+            l_arr = clean_text(driver.get('ville_arrivee', ''))
+
+            # --- 2. FILTRE STRICT ---
             if recherche_active:
-                # On regarde si ce que le voyageur a tapé est "inclus" dans la ligne du chauffeur
-                # ex: "tizi" est dans "tizi ouzou" -> C'est bon
-                
-                # Cas 1 : Le bus fait le trajet Aller
-                match_aller = (txt_dep in l_dep) and (txt_arr in l_arr)
-                
-                # Cas 2 : Le bus fait le trajet Retour
-                match_retour = (txt_dep in l_arr) and (txt_arr in l_dep)
+                # Par défaut, on suppose que ça ne matche pas
+                is_match_aller = True
+                is_match_retour = True
 
-                if not match_aller and not match_retour:
-                    continue # Ce bus ne correspond pas, on le cache.
+                # TEST SENS ALLER (Ligne Dep -> Ligne Arr)
+                # Si l'utilisateur a écrit un départ, est-ce qu'il est dans le départ du chauffeur ?
+                if has_dep and txt_dep not in l_dep: is_match_aller = False
+                # Si l'utilisateur a écrit une arrivée, est-ce qu'elle est dans l'arrivée du chauffeur ?
+                if has_arr and txt_arr not in l_arr: is_match_aller = False
 
-            # --- 3. LOGIQUE TERMINUS (Pour le tracé jaune) ---
+                # TEST SENS RETOUR (Ligne Arr -> Ligne Dep)
+                if has_dep and txt_dep not in l_arr: is_match_retour = False
+                if has_arr and txt_arr not in l_dep: is_match_retour = False
+
+                # Si le bus ne correspond NI à l'aller NI au retour -> On le cache
+                if not is_match_aller and not is_match_retour:
+                    continue 
+
+            # --- 3. LOGIQUE TERMINUS & DONNÉES ---
+            # On cherche les coordonnées (en essayant de gérer les noms partiels)
             coord_dep = CITIES_DB.get(l_dep)
-            coord_arr = CITIES_DB.get(l_arr)
-            direction = trip.get('direction_actuelle')
+            if not coord_dep: # Tentative de rattrapage
+                for k in CITIES_DB: 
+                    if k in l_dep: coord_dep = CITIES_DB[k]; break
             
+            coord_arr = CITIES_DB.get(l_arr)
+            if not coord_arr:
+                for k in CITIES_DB:
+                    if k in l_arr: coord_arr = CITIES_DB[k]; break
+
+            direction = trip.get('direction_actuelle')
             terminus_officiel = None
             
-            # A. Si le bus connait sa direction (calculée par GPS), on l'utilise
+            # Logique direction
             if direction:
-                if direction == l_arr: terminus_officiel = coord_arr
-                elif direction == l_dep: terminus_officiel = coord_dep
+                d_clean = clean_text(direction)
+                if d_clean in l_arr: terminus_officiel = coord_arr
+                elif d_clean in l_dep: terminus_officiel = coord_dep
             
-            # B. Si direction inconnue (au démarrage), on devine selon la recherche du voyageur
+            # Si direction inconnue, on devine selon la recherche
             if not terminus_officiel and recherche_active:
-                # Si le voyageur va quelque part qui ressemble à l'Arrivée du bus
-                if txt_arr in l_arr: terminus_officiel = coord_arr
-                elif txt_arr in l_dep: terminus_officiel = coord_dep
+                if has_arr and txt_arr in l_arr: terminus_officiel = coord_arr
+                elif has_arr and txt_arr in l_dep: terminus_officiel = coord_dep
 
             # Calcul Distance
             dist_user = 0
@@ -224,12 +250,12 @@ def api_trouver_bus():
 
             bus_proches.append({
                 'bus_id': trip['chauffeur_id'],
-                'chauffeur': driver['nom_complet'], # J'ai retiré le préfixe [TEST]
+                'chauffeur': driver['nom_complet'],
                 'current_lat': trip['current_lat'],
                 'current_lon': trip['current_lon'],
-                'distance_km': dist_user,
+                'distance_km': round(dist_user, 1),
                 'direction': direction,
-                'terminus_officiel': terminus_officiel, # Important pour le tracé !
+                'terminus_officiel': terminus_officiel,
                 'ligne_start': coord_dep,
                 'ligne_end': coord_arr
             })
@@ -244,6 +270,7 @@ def api_trouver_bus():
 if __name__ == '__main__':
 
     app.run(host='0.0.0.0', port=5000, debug=True)
+
 
 
 

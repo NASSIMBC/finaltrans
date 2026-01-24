@@ -4,6 +4,8 @@
     <title>Espace Chauffeur</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0f172a">
     <style>
         body { background: #0f172a; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
         .status-box { background: #1e293b; padding: 30px; border-radius: 20px; text-align: center; width: 90%; max-width: 350px; }
@@ -25,7 +27,7 @@
         <div class="line-route" id="lineName">Chargement...</div>
 
         <button class="btn-action btn-start" id="btnStart" onclick="toggleGPS()">
-            <i class="fas fa-power-off"></i> EN LIGNE
+            EN LIGNE
         </button>
         <button class="btn-action btn-stop" id="btnStop" onclick="toggleGPS()">
             HORS LIGNE
@@ -36,8 +38,13 @@
     </div>
 
     <script>
+        // --- 1. CONFIGURATION DU SERVEUR ---
+        // REMPLACEZ L'ADRESSE CI-DESSOUS PAR VOTRE LIEN RENDER (ex: https://tizi-transport.onrender.com)
+        const SERVER_URL = "https://finaltrans.onrender.com"; 
+
+        // Protection de session
         const session = JSON.parse(localStorage.getItem('user_session'));
-        if(!session || session.role !== 'chauffeur') window.location.href = '/connexion';
+        if(!session || session.role !== 'chauffeur') window.location.href = 'connexion.html'; // Lien relatif vers le fichier local
         
         const vDep = session.user.ville_depart || '?';
         const vArr = session.user.ville_arrivee || '?';
@@ -54,8 +61,9 @@
                 document.getElementById('statusBadge').style.background = 'rgba(239, 68, 68, 0.2)';
                 document.getElementById('statusBadge').style.color = '#ef4444';
 
+                // On utilise SERVER_URL ici
                 watchId = navigator.geolocation.watchPosition(pos => {
-                    fetch('/api/update-position', {
+                    fetch(SERVER_URL + '/api/update-position', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({
@@ -66,12 +74,13 @@
                     })
                     .then(r => r.json())
                     .then(data => {
-                        // Le serveur nous renvoie la direction calculée, on l'affiche pour info
                         if(data.direction) {
                             document.getElementById('directionDebug').innerText = "Direction détectée : Vers " + data.direction.toUpperCase();
                         }
-                    });
-                }, err => alert("Erreur GPS"), {enableHighAccuracy: true});
+                    })
+                    .catch(err => console.error("Erreur connexion serveur:", err));
+
+                }, err => alert("Erreur GPS : Activez la localisation"), {enableHighAccuracy: true});
 
             } else {
                 // STOP

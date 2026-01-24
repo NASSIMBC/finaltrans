@@ -164,80 +164,88 @@ def api_trouver_bus():
     user_lat = data.get('user_lat')
     user_lon = data.get('user_lon')
     
-    # 1. On récupère ce que le voyageur a écrit (nettoyé en minuscule)
+    # On récupère et nettoie les textes
+    # .lower().strip() enlève les majuscules et les espaces en trop
     txt_dep_voyageur = data.get('depart_text', '').lower().strip()
     txt_arr_voyageur = data.get('arrivee_text', '').lower().strip()
 
-    print(f"🔍 RECHERCHE: De '{txt_dep_voyageur}' vers '{txt_arr_voyageur}'")
+    print(f"🔍 RECHERCHE CLIENT: De '{txt_dep_voyageur}' vers '{txt_arr_voyageur}'")
 
     try:
         active_trips = supabase.table('active_trips').select('*').execute().data
         bus_proches = []
 
         for trip in active_trips:
-            # Récup infos chauffeur
             driver = supabase.table('drivers').select('*').eq('id', trip['chauffeur_id']).execute().data[0]
             
-            # Villes de la ligne du chauffeur
+            # Ligne du chauffeur (depuis la base de données)
             ligne_dep = driver.get('ville_depart', '').lower().strip()
             ligne_arr = driver.get('ville_arrivee', '').lower().strip()
             
-            # --- 🛑 FILTRE DE LIGNE STRICT ---
-            # On vérifie si le chauffeur travaille sur la ligne demandée (dans un sens ou l'autre)
-            # Ex: Si voyageur veut A->B, le chauffeur doit faire A-B ou B-A.
-            est_sur_la_ligne = False
+            print(f"  > Test Chauffeur {driver['nom_complet']} (Ligne: {ligne_dep} <-> {ligne_arr})")
+
+            # --- 1. FILTRE DE LIGNE (Est-ce qu'il fait ce trajet ?) ---
+            match_aller = (ligne_dep == txt_dep_voyageur and ligne_arr == txt_arr_voyageur)
+            match_retour = (ligne_dep == txt_arr_voyageur and ligne_arr == txt_dep_voyageur)
+
+            if not match_aller and not match_retour:
+                print("    ❌ Rejeté : Mauvaise ligne")
+                continue # Ce n'est pas la bonne ligne
+
+            # --- 2. FILTRE DE SENS (CORRIGÉ / PLUS SOUPLE) ---
+            direction_bus = trip.get('direction_actuelle') # Peut être None ou "Inconnue"
             
-            # Cas 1: Le chauffeur fait exactement A -> B
-            if ligne_dep == txt_dep_voyageur and ligne_arr == txt_arr_voyageur:
-                est_sur_la_ligne = True
-            # Cas 2: Le chauffeur fait le retour B -> A
-            elif ligne_dep == txt_arr_voyageur and ligne_arr == txt_dep_voyageur:
-                est_sur_la_ligne = True
-                
-            if not est_sur_la_ligne:
-                # Ce bus ne fait pas cette ligne, on le saute !
-                continue
+            # Si on connait la direction, on vérifie. Sinon (au démarrage), on laisse passer.
+            if direction_bus and direction_bus != "Inconnue":
+                # Si le bus va vers Tizi alors que je veux Alger -> On cache
+                if direction_bus.lower() != txt_arr_voyageur:
+                     print(f"    ❌ Rejeté : Mauvais sens (Va vers {direction_bus})")
+                     continue
 
-            # --- 🛑 FILTRE DE SENS (OPTIONNEL MAIS RECOMMANDÉ) ---
-            # Si le voyageur veut aller à "Alger", le bus doit aller vers "Alger"
-            direction_bus = trip.get('direction_actuelle', '').lower()
-            if direction_bus != txt_arr_voyageur:
-                 continue # Le bus va dans le mauvais sens
-
-            # --- PREPARATION DES DONNÉES ---
+            # --- 3. PRÉPARATION ---
             coord_dep = CITIES_DB.get(ligne_dep)
             coord_arr = CITIES_DB.get(ligne_arr)
             
-            # Terminus officiel (pour le tracé jaune)
+            # Terminus officiel (si on connait la direction)
             terminus_coords = None
             if direction_bus == ligne_arr: terminus_coords = coord_arr
             elif direction_bus == ligne_dep: terminus_coords = coord_dep
+            
+            # Si pas de direction connue, on prend la destination du voyageur par défaut pour tracer la ligne
+            if not terminus_coords:
+                terminus_coords = CITIES_DB.get(txt_arr_voyageur)
 
             # Calcul Distance
             dist_user = 0
             if user_lat and trip['current_lat']:
                 dist_user = haversine(user_lat, user_lon, trip['current_lat'], trip['current_lon'])
 
+            print("    ✅ ACCEPTÉ !")
             bus_proches.append({
                 'bus_id': trip['chauffeur_id'],
                 'chauffeur': driver['nom_complet'],
                 'current_lat': trip['current_lat'],
                 'current_lon': trip['current_lon'],
                 'distance_km': dist_user,
-                'direction': trip.get('direction_actuelle'),
-                'terminus_officiel': terminus_coords
+                'direction': direction_bus,
+                'terminus_officiel': terminus_coords,
+                
+                # On envoie aussi les points de la ligne pour le dessin
+                'ligne_start': coord_dep, 
+                'ligne_end': coord_arr
             })
 
         bus_proches.sort(key=lambda x: x['distance_km'])
         return jsonify({"bus_proches": bus_proches})
 
     except Exception as e:
-        print(f"🔴 ERREUR: {e}")
+        print(f"🔴 ERREUR CRITIQUE: {e}")
         return jsonify({"bus_proches": []})
 
 if __name__ == '__main__':
 
     app.run(host='0.0.0.0', port=5000, debug=True)
+
 
 
 

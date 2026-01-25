@@ -224,12 +224,13 @@ def serve_manifest():
 def serve_sw():
     return send_from_directory('.', 'sw.js')
 
-# --- API 4 : TROUVER BUS (INTELLIGENTE & SAUVEGARDE) ---
+# --- API 4 : TROUVER BUS (INTELLIGENTE & SAUVEGARDE CONDITIONNELLE) ---
 @app.route('/api/trouver-bus', methods=['POST'])
 def api_trouver_bus():
     data = request.json
     user_lat = data.get('user_lat')
     user_lon = data.get('user_lon')
+    is_visible = data.get('visible', True) # <--- RÉCUPÉRATION DU BOUTON (Par défaut True)
 
     def clean_text(t):
         if not t: return ""
@@ -242,15 +243,14 @@ def api_trouver_bus():
     has_arr = len(txt_arr) > 0
     recherche_active = (has_dep or has_arr)
 
-    print(f"🔍 RECHERCHE INTELLIGENTE: '{txt_dep}' -> '{txt_arr}'")
+    print(f"🔍 RECHERCHE INTELLIGENTE: '{txt_dep}' -> '{txt_arr}' (Visible: {is_visible})")
 
     # ==============================================================================
-    # 🆕 AJOUT : ON ENREGISTRE LE VOYAGEUR POUR LES CHAUFFEURS
+    # 🆕 MODIFIÉ : ON ENREGISTRE UNIQUEMENT SI LE CLIENT VEUT ETRE VISIBLE
     # ==============================================================================
-    if recherche_active and user_lat and user_lon:
+    if is_visible and recherche_active and user_lat and user_lon:
         try:
             # On insère la position et la recherche du voyageur dans la base
-            # Cela permet au chauffeur de voir des icônes sur sa carte
             supabase.table('passenger_requests').insert({
                 'user_lat': user_lat,
                 'user_lon': user_lon,

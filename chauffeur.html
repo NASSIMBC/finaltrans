@@ -190,9 +190,11 @@
         // Marqueurs Ligne
         let markerDep, markerArr;
         let isEditingMap = false;
+        
+        // --- NOUVEAU : COUCHE DU TRACÉ DE LA ROUTE ---
+        let routeLayer = null; 
 
-        // --- NOUVEAU : GESTION DES VOYAGEURS (VIOLET) ---
-        // On crée un DivIcon personnalisé (Cercle Violet avec Bonhomme Blanc)
+        // --- GESTION DES VOYAGEURS (VIOLET) ---
         const iconClient = L.divIcon({
             className: 'passenger-marker',
             html: `<div style="background-color: #a855f7; width:30px; height:30px; border-radius:50%; border:2px solid white; display:flex; justify-content:center; align-items:center; box-shadow: 0 0 10px #a855f7;"><i class="fas fa-user" style="color:white; font-size:14px;"></i></div>`,
@@ -200,7 +202,7 @@
             iconAnchor: [15, 15],
             popupAnchor: [0, -20]
         });
-        let clientMarkers = []; // Pour stocker les marqueurs et les effacer
+        let clientMarkers = []; 
 
         // --- INITIALISATION ---
         function init() {
@@ -218,8 +220,11 @@
             map = L.map('map', { zoomControl: false }).setView([startLat, startLon], 13);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-            // Charger les points de la ligne (Lecture seule au début)
+            // Charger les points de la ligne
             chargerLigneSurCarte();
+            
+            // Charger le tracé de la route
+            tracerRouteChauffeur();
         }
 
         // --- GESTION DE LA LIGNE (DRAPEAUX) ---
@@ -237,16 +242,43 @@
             }
         }
 
+        // --- NOUVEAU : TRACER LA ROUTE (LIGNE JAUNE) ---
+        async function tracerRouteChauffeur() {
+            // Vérifier qu'on a bien les deux points
+            if (!session.user.dep_lat || !session.user.dep_lon || !session.user.arr_lat || !session.user.arr_lon) return;
+
+            // Nettoyer ancienne route
+            if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
+
+            const start = `${session.user.dep_lon},${session.user.dep_lat}`;
+            const end = `${session.user.arr_lon},${session.user.arr_lat}`;
+            
+            // Appel API Routing (OSRM)
+            const url = `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson`;
+
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.routes && data.routes.length > 0) {
+                    // Dessiner la ligne
+                    routeLayer = L.geoJSON(data.routes[0].geometry, { 
+                        style: { color: "#d4fb79", weight: 6, opacity: 0.7 } 
+                    }).addTo(map);
+                    
+                    // Centrer la carte sur toute la ligne
+                    map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
+                }
+            } catch (e) { console.error("Erreur tracer route:", e); }
+        }
+
         function activerModeEdition() {
             toggleProfile(); // Ferme le modal
             isEditingMap = true;
             document.getElementById('editIndicator').style.display = 'block';
 
-            // Rendre les marqueurs glissables
             if(markerDep) markerDep.dragging.enable();
             if(markerArr) markerArr.dragging.enable();
 
-            // Créer les marqueurs s'ils n'existent pas encore (au centre de la carte)
             const center = map.getCenter();
             if(!markerDep) {
                 const iconDep = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', iconSize: [25, 41], iconAnchor: [12, 41] });
@@ -290,10 +322,12 @@
                 });
                 
                 if(res.ok) {
-                    alert("Profil mis à jour !");
+                    alert("Profil mis à jour ! La route va être recalculée.");
                     // Mise à jour session locale
                     const updatedUser = {...session.user, ...data};
                     localStorage.setItem('user_session', JSON.stringify({role: 'chauffeur', user: updatedUser}));
+                    
+                    // Recharge la page pour afficher la nouvelle ligne
                     window.location.reload();
                 } else {
                     alert("Erreur sauvegarde");

@@ -296,6 +296,35 @@ def api_trouver_bus():
         print(f"🔴 ERREUR API: {e}")
         return jsonify({"bus_proches": []})
 
+# --- API 5 : MISE A JOUR PROFIL CHAUFFEUR ---
+@app.route('/api/update-driver-profile', methods=['POST'])
+def update_driver_profile():
+    data = request.json
+    uid = data.get('id')
+    
+    try:
+        update_data = {
+            'nom_complet': data.get('nom_complet'),
+            'modele_vehicule': data.get('modele_vehicule'),
+            'matricule_vehicule': data.get('matricule_vehicule'),
+            'ville_depart': data.get('ville_depart', '').lower().strip(),
+            'ville_arrivee': data.get('ville_arrivee', '').lower().strip(),
+        }
+        
+        # On ajoute les coordonnées seulement si elles sont présentes
+        if data.get('dep_lat'): update_data['dep_lat'] = data.get('dep_lat')
+        if data.get('dep_lon'): update_data['dep_lon'] = data.get('dep_lon')
+        if data.get('arr_lat'): update_data['arr_lat'] = data.get('arr_lat')
+        if data.get('arr_lon'): update_data['arr_lon'] = data.get('arr_lon')
+
+        supabase.table('drivers').update(update_data).eq('id', uid).execute()
+        
+        return jsonify({"status": "success"})
+    except Exception as e:
+        print(f"Erreur Update Profile: {e}")
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
 

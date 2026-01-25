@@ -191,12 +191,14 @@
         let markerDep, markerArr;
         let isEditingMap = false;
 
-        // --- NOUVEAU : GESTION DES VOYAGEURS ---
-        const iconClient = L.icon({
-            iconUrl: 'https://cdn-icons-png.flaticon.com/512/3214/3214746.png', // Icône Personne
+        // --- NOUVEAU : GESTION DES VOYAGEURS (VIOLET) ---
+        // On crée un DivIcon personnalisé (Cercle Violet avec Bonhomme Blanc)
+        const iconClient = L.divIcon({
+            className: 'passenger-marker',
+            html: `<div style="background-color: #a855f7; width:30px; height:30px; border-radius:50%; border:2px solid white; display:flex; justify-content:center; align-items:center; box-shadow: 0 0 10px #a855f7;"><i class="fas fa-user" style="color:white; font-size:14px;"></i></div>`,
             iconSize: [30, 30],
-            iconAnchor: [15, 30],
-            popupAnchor: [0, -30]
+            iconAnchor: [15, 15],
+            popupAnchor: [0, -20]
         });
         let clientMarkers = []; // Pour stocker les marqueurs et les effacer
 

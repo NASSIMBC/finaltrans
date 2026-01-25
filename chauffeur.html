@@ -65,7 +65,7 @@
         }
         .btn-go.offline { background: var(--danger); color: white; box-shadow: 0 0 30px rgba(239, 68, 68, 0.4); }
 
-        /* --- MODAL PROFIL / REGLAGES --- */
+        /* --- MODAL PROFIL --- */
         .modal-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.8); z-index: 2000;
@@ -99,7 +99,6 @@
             border: none; border-radius: 12px; font-weight: 800; margin-top: 20px; cursor: pointer;
         }
         
-        /* Indicateur Mode Édition Carte */
         .edit-mode-indicator {
             position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
             background: var(--accent); color: black; padding: 10px 20px;
@@ -191,7 +190,7 @@
         let markerDep, markerArr;
         let isEditingMap = false;
         
-        // --- NOUVEAU : COUCHE DU TRACÉ DE LA ROUTE ---
+        // --- COUCHE DU TRACÉ DE LA ROUTE ---
         let routeLayer = null; 
 
         // --- GESTION DES VOYAGEURS (VIOLET) ---
@@ -204,7 +203,6 @@
         });
         let clientMarkers = []; 
 
-        // --- INITIALISATION ---
         function init() {
             // Remplir le formulaire
             document.getElementById('pName').value = session.user.nom_complet || '';
@@ -220,14 +218,10 @@
             map = L.map('map', { zoomControl: false }).setView([startLat, startLon], 13);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-            // Charger les points de la ligne
             chargerLigneSurCarte();
-            
-            // Charger le tracé de la route
-            tracerRouteChauffeur();
+            // On ne trace pas la route statique ici, on attend le GPS pour tracer "ce qu'il reste"
         }
 
-        // --- GESTION DE LA LIGNE (DRAPEAUX) ---
         function chargerLigneSurCarte() {
             const iconDep = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', iconSize: [25, 41], iconAnchor: [12, 41] });
             const iconArr = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', iconSize: [25, 41], iconAnchor: [12, 41] });
@@ -242,43 +236,49 @@
             }
         }
 
-        // --- NOUVEAU : TRACER LA ROUTE (LIGNE JAUNE) ---
-        async function tracerRouteChauffeur() {
-            // Vérifier qu'on a bien les deux points
-            if (!session.user.dep_lat || !session.user.dep_lon || !session.user.arr_lat || !session.user.arr_lon) return;
+        // --- NOUVEAU : MISE A JOUR DYNAMIQUE DU TRACÉ RESTANT ---
+        async function updateDynamicRoute(currentLat, currentLon, directionName) {
+            // Pas de destination définie = pas de tracé
+            if (!session.user.dep_lat || !session.user.arr_lat) return;
 
-            // Nettoyer ancienne route
-            if (routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
-
-            const start = `${session.user.dep_lon},${session.user.dep_lat}`;
-            const end = `${session.user.arr_lon},${session.user.arr_lat}`;
+            let targetLat, targetLon;
             
-            // Appel API Routing (OSRM)
+            // On détermine le point cible en fonction de la direction renvoyée par le serveur
+            const dir = (directionName || "").toLowerCase();
+            const vArr = (session.user.ville_arrivee || "").toLowerCase();
+
+            if (dir.includes(vArr)) {
+                // Direction Arrivée -> On va vers les coords Arrivée
+                targetLat = session.user.arr_lat;
+                targetLon = session.user.arr_lon;
+            } else {
+                // Direction Départ (ou inconnu) -> On va vers les coords Départ
+                targetLat = session.user.dep_lat;
+                targetLon = session.user.dep_lon;
+            }
+
+            const start = `${currentLon},${currentLat}`;
+            const end = `${targetLon},${targetLat}`;
             const url = `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson`;
 
             try {
                 const res = await fetch(url);
                 const data = await res.json();
                 if (data.routes && data.routes.length > 0) {
-                    // Dessiner la ligne
+                    if (routeLayer) map.removeLayer(routeLayer);
                     routeLayer = L.geoJSON(data.routes[0].geometry, { 
-                        style: { color: "#d4fb79", weight: 6, opacity: 0.7 } 
+                        style: { color: "#d4fb79", weight: 6, opacity: 0.8 } 
                     }).addTo(map);
-                    
-                    // Centrer la carte sur toute la ligne
-                    map.fitBounds(routeLayer.getBounds(), { padding: [50, 50] });
                 }
-            } catch (e) { console.error("Erreur tracer route:", e); }
+            } catch (e) { console.error("Erreur tracé dynamique:", e); }
         }
 
         function activerModeEdition() {
-            toggleProfile(); // Ferme le modal
+            toggleProfile();
             isEditingMap = true;
             document.getElementById('editIndicator').style.display = 'block';
-
             if(markerDep) markerDep.dragging.enable();
             if(markerArr) markerArr.dragging.enable();
-
             const center = map.getCenter();
             if(!markerDep) {
                 const iconDep = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', iconSize: [25, 41], iconAnchor: [12, 41] });
@@ -288,11 +288,9 @@
                 const iconArr = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', iconSize: [25, 41], iconAnchor: [12, 41] });
                 markerArr = L.marker([center.lat, center.lng + 0.01], {icon: iconArr, draggable: true}).addTo(map);
             }
-
             alert("Déplacez les drapeaux Vert (Départ) et Rouge (Arrivée) puis retournez dans le profil pour Enregistrer.");
         }
 
-        // --- SAUVEGARDE PROFIL & GPS ---
         async function sauvegarderProfil() {
             const data = {
                 id: session.user.id,
@@ -302,8 +300,6 @@
                 ville_depart: document.getElementById('pVdep').value,
                 ville_arrivee: document.getElementById('pVarr').value,
             };
-
-            // Si on a édité la carte, on récupère les nouvelles pos
             if(markerDep) {
                 const pos = markerDep.getLatLng();
                 data.dep_lat = pos.lat;
@@ -314,43 +310,32 @@
                 data.arr_lat = pos.lat;
                 data.arr_lon = pos.lng;
             }
-
             try {
                 const res = await fetch(SERVER_URL + '/api/update-driver-profile', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify(data)
                 });
-                
                 if(res.ok) {
-                    alert("Profil mis à jour ! La route va être recalculée.");
-                    // Mise à jour session locale
+                    alert("Profil mis à jour !");
                     const updatedUser = {...session.user, ...data};
                     localStorage.setItem('user_session', JSON.stringify({role: 'chauffeur', user: updatedUser}));
-                    
-                    // Recharge la page pour afficher la nouvelle ligne
                     window.location.reload();
-                } else {
-                    alert("Erreur sauvegarde");
-                }
+                } else { alert("Erreur sauvegarde"); }
             } catch(e) { console.error(e); alert("Erreur connexion"); }
         }
 
-        // --- GPS EN LIGNE / HORS LIGNE ---
         function toggleGPS() {
             const btn = document.getElementById('btnGo');
             const statusText = document.getElementById('statusText');
             const statusDot = document.getElementById('statusDot');
 
             if(!isOnline) {
-                // GO ONLINE
                 watchId = navigator.geolocation.watchPosition(
                     pos => {
                         const lat = pos.coords.latitude;
                         const lon = pos.coords.longitude;
 
-                        // Mise à jour carte
                         if(!userMarker) {
-                            // Icone Flèche Bleue
                             const iconArrow = L.divIcon({
                                 className: 'custom-div-icon',
                                 html: `<div style="background:#3b82f6; width:20px; height:20px; border-radius:50%; border:3px solid white; box-shadow:0 0 10px #3b82f6;"></div>`,
@@ -363,33 +348,25 @@
                             userMarker.setLatLng([lat, lon]);
                         }
 
-                        // Envoi Serveur & Réception des Voyageurs
                         fetch(SERVER_URL + '/api/update-position', {
                             method: 'POST', headers: {'Content-Type': 'application/json'},
                             body: JSON.stringify({ id: session.user.id, lat: lat, lon: lon })
                         })
                         .then(r => r.json())
                         .then(data => {
-                            // --- AFFICHAGE DES VOYAGEURS SUR LA CARTE ---
+                            // 1. Mettre à jour le tracé restant (Route dynamique)
+                            updateDynamicRoute(lat, lon, data.direction);
+
+                            // 2. Afficher voyageurs
                             if(data.voyageurs) {
-                                // 1. Nettoyer les anciens marqueurs
                                 clientMarkers.forEach(m => map.removeLayer(m));
                                 clientMarkers = [];
-
-                                // 2. Ajouter les nouveaux
                                 data.voyageurs.forEach(v => {
-                                    const m = L.marker([v.lat, v.lon], {icon: iconClient})
-                                        .addTo(map)
-                                        .bindPopup('<div style="color:black; font-weight:bold;">Voyageur en attente</div>');
+                                    const m = L.marker([v.lat, v.lon], {icon: iconClient}).addTo(map).bindPopup('<div style="color:black; font-weight:bold;">Voyageur</div>');
                                     clientMarkers.push(m);
                                 });
-
-                                // Mise à jour du texte de statut
-                                if(data.voyageurs.length > 0) {
-                                    statusText.innerText = `EN LIGNE (${data.voyageurs.length})`;
-                                } else {
-                                    statusText.innerText = "EN LIGNE";
-                                }
+                                if(data.voyageurs.length > 0) statusText.innerText = `EN LIGNE (${data.voyageurs.length})`;
+                                else statusText.innerText = "EN LIGNE";
                             }
                         })
                         .catch(e => console.log("Erreur envoi pos"));
@@ -405,28 +382,20 @@
                 statusDot.classList.add('active');
 
             } else {
-                // GO OFFLINE
                 navigator.geolocation.clearWatch(watchId);
                 isOnline = false;
                 btn.innerText = "GO";
                 btn.classList.remove('offline');
                 statusText.innerText = "HORS LIGNE";
                 statusDot.classList.remove('active');
-                
-                // Nettoyer les voyageurs quand on se déconnecte
                 clientMarkers.forEach(m => map.removeLayer(m));
                 clientMarkers = [];
+                if(routeLayer) { map.removeLayer(routeLayer); routeLayer = null; } // Effacer le tracé si on stop
             }
         }
 
-        // UI Helpers
-        function toggleProfile() {
-            document.getElementById('profileModal').classList.toggle('active');
-        }
-        function deconnexion() {
-            localStorage.removeItem('user_session');
-            window.location.href = '/connexion';
-        }
+        function toggleProfile() { document.getElementById('profileModal').classList.toggle('active'); }
+        function deconnexion() { localStorage.removeItem('user_session'); window.location.href = '/connexion'; }
 
         init();
     </script>

@@ -1,34 +1,100 @@
 <!DOCTYPE html>
-<html lang="fr" data-theme="dark">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inscription Tizi Transport</title>
+    <title>Inscription - Tizi Transport</title>
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400;600;800&display=swap" rel="stylesheet">
+    
     <style>
-        body { font-family: 'Urbanist', sans-serif; background: #000000; color: white; margin: 0; padding: 20px; display: flex; justify-content: center; }
-        .card { background: #1e1e1e; padding: 25px; border-radius: 24px; width: 100%; max-width: 500px; border: 1px solid #333; }
-        h3 { text-align: center; color: #d4fb79; margin-top: 0; }
+        :root {
+            --bg-dark: #0f172a;
+            --accent: #d4fb79;
+            --text-main: #ffffff;
+            --text-muted: #94a3b8;
+        }
+        body {
+            margin: 0; font-family: 'Urbanist', sans-serif;
+            background-color: var(--bg-dark); color: var(--text-main);
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; padding: 20px; box-sizing: border-box;
+            background-image: radial-gradient(circle at bottom left, #1e293b 0%, #0f172a 60%);
+        }
+        .card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(20px);
+            padding: 30px; border-radius: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            width: 100%; max-width: 500px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+        h3 { 
+            text-align: center; color: white; margin-top: 0; margin-bottom: 25px;
+            font-weight: 800; font-size: 1.5rem; 
+        }
 
-        input { width: 100%; padding: 15px; margin-bottom: 10px; border-radius: 12px; border: 1px solid #333; background: #2c2c2c; color: white; box-sizing: border-box; }
-        
+        /* Inputs stylisés */
+        .input-group { position: relative; margin-bottom: 15px; }
+        .input-icon {
+            position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
+            color: var(--text-muted); z-index: 10;
+        }
+        input {
+            width: 100%; padding: 16px 16px 16px 45px;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 15px; color: white;
+            font-family: 'Urbanist', sans-serif; font-size: 1rem;
+            box-sizing: border-box; outline: none; transition: 0.3s;
+        }
+        input:focus { border-color: var(--accent); background: rgba(15, 23, 42, 0.9); }
+
         /* Selecteur Rôle */
-        .switch { display: flex; margin-bottom: 20px; background: #2c2c2c; padding: 5px; border-radius: 12px; }
-        .switch div { flex: 1; text-align: center; padding: 10px; cursor: pointer; border-radius: 10px; transition: 0.3s; font-weight: bold; }
-        .active { background: #d4fb79; color: black; }
+        .switch { 
+            display: flex; margin-bottom: 25px; 
+            background: rgba(0,0,0,0.3); padding: 5px; border-radius: 15px; 
+        }
+        .switch div { 
+            flex: 1; text-align: center; padding: 12px; cursor: pointer; 
+            border-radius: 12px; transition: 0.3s; font-weight: 700; color: var(--text-muted);
+        }
+        .switch div.active { 
+            background: var(--accent); color: black; 
+            box-shadow: 0 4px 10px rgba(212, 251, 121, 0.3); 
+        }
 
-        /* Carte de sélection */
-        #mapSelection { height: 300px; width: 100%; border-radius: 15px; margin-bottom: 15px; border: 2px solid #333; display: none; }
+        /* Section Carte */
+        #mapSelection { 
+            height: 300px; width: 100%; border-radius: 20px; 
+            margin-bottom: 15px; border: 2px solid rgba(255,255,255,0.1); 
+        }
         
-        .map-controls { display: flex; gap: 10px; margin-bottom: 10px; display: none; }
-        .btn-map { flex: 1; padding: 10px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; opacity: 0.6; }
-        .btn-map.selected { opacity: 1; border: 2px solid white; }
-        .btn-dep { background: #d4fb79; color: black; } /* Vert/Jaune */
-        .btn-arr { background: #ef4444; color: white; } /* Rouge */
+        .map-controls { display: flex; gap: 10px; margin-bottom: 15px; }
+        .btn-map { 
+            flex: 1; padding: 12px; border-radius: 12px; border: none; 
+            font-weight: 800; cursor: pointer; opacity: 0.5; transition: 0.3s;
+            font-family: 'Urbanist', sans-serif;
+        }
+        .btn-map.selected { opacity: 1; transform: scale(1.02); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .btn-dep { background: #d4fb79; color: black; } 
+        .btn-arr { background: #ef4444; color: white; }
 
-        button.main-btn { width: 100%; padding: 16px; background: white; color: black; border: none; border-radius: 12px; font-weight: 800; font-size: 1.1rem; cursor: pointer; margin-top: 15px; }
+        button.main-btn { 
+            width: 100%; padding: 18px; border: none; border-radius: 15px;
+            background: var(--accent); color: #0f172a;
+            font-size: 1.1rem; font-weight: 800; cursor: pointer; 
+            margin-top: 20px; transition: 0.3s;
+        }
+        button.main-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(212, 251, 121, 0.2); }
+
+        .link-text { text-align:center; margin-top:20px; font-size:0.9rem; color: var(--text-muted); }
+        .link-text a { color: var(--accent); text-decoration: none; font-weight: 700; }
+        
         .hidden { display: none; }
+        hr { border: 0; border-top: 1px solid rgba(255,255,255,0.1); margin: 20px 0; }
     </style>
 </head>
 <body>
@@ -41,33 +107,67 @@
         <div id="btnC" onclick="setRole('chauffeur')">Chauffeur</div>
     </div>
 
-    <input type="text" id="nom" placeholder="Nom complet">
-    <input type="tel" id="tel" placeholder="Téléphone">
-    <input type="email" id="email" placeholder="Email">
-    <input type="password" id="password" placeholder="Mot de passe">
+    <div class="input-group">
+        <i class="fas fa-user input-icon"></i>
+        <input type="text" id="nom" placeholder="Nom complet">
+    </div>
+    <div class="input-group">
+        <i class="fas fa-phone input-icon"></i>
+        <input type="tel" id="tel" placeholder="Téléphone">
+    </div>
+    <div class="input-group">
+        <i class="fas fa-envelope input-icon"></i>
+        <input type="email" id="email" placeholder="Email">
+    </div>
+    <div class="input-group">
+        <i class="fas fa-lock input-icon"></i>
+        <input type="password" id="password" placeholder="Mot de passe">
+    </div>
 
     <div id="driverFields" class="hidden">
-        <p style="font-size:0.9rem; color:#aaa; margin-bottom:10px;">Configurez votre ligne sur la carte :</p>
+        <hr>
+        <p style="font-size:0.9rem; color:#94a3b8; margin-bottom:15px; font-weight:600;">
+            <i class="fas fa-map-marked-alt"></i> Tracez votre ligne sur la carte :
+        </p>
         
         <div class="map-controls" id="mapControls">
-            <button class="btn-map btn-dep selected" id="btnSelectDep" onclick="setMode('depart')">📍 Point Départ</button>
-            <button class="btn-map btn-arr" id="btnSelectArr" onclick="setMode('arrivee')">🏁 Terminus</button>
+            <button class="btn-map btn-dep selected" id="btnSelectDep" onclick="setMode('depart')">
+                <i class="fas fa-map-pin"></i> Départ
+            </button>
+            <button class="btn-map btn-arr" id="btnSelectArr" onclick="setMode('arrivee')">
+                <i class="fas fa-flag-checkered"></i> Terminus
+            </button>
         </div>
 
         <div id="mapSelection"></div>
 
-        <input type="text" id="v_depart" placeholder="Ville de Départ (Auto)" readonly style="background:#111; color:#d4fb79;">
-        <input type="text" id="v_arrivee" placeholder="Ville d'Arrivée (Auto)" readonly style="background:#111; color:#ef4444;">
+        <div class="input-group">
+            <i class="fas fa-location-arrow input-icon" style="color:var(--accent)"></i>
+            <input type="text" id="v_depart" placeholder="Ville de Départ (Auto)" readonly style="color:var(--accent); font-weight:bold;">
+        </div>
+        <div class="input-group">
+            <i class="fas fa-location-dot input-icon" style="color:#ef4444"></i>
+            <input type="text" id="v_arrivee" placeholder="Ville d'Arrivée (Auto)" readonly style="color:#ef4444; font-weight:bold;">
+        </div>
         
         <input type="hidden" id="dep_lat"><input type="hidden" id="dep_lon">
         <input type="hidden" id="arr_lat"><input type="hidden" id="arr_lon">
 
-        <input type="text" id="matricule" placeholder="Matricule (ex: 00123-116-15)">
-        <input type="text" id="modele" placeholder="Modèle (ex: Toyota Coaster)">
+        <div class="input-group">
+            <i class="fas fa-id-card input-icon"></i>
+            <input type="text" id="matricule" placeholder="Matricule (ex: 00123-116-15)">
+        </div>
+        <div class="input-group">
+            <i class="fas fa-bus input-icon"></i>
+            <input type="text" id="modele" placeholder="Modèle (ex: Toyota Coaster)">
+        </div>
     </div>
 
-    <button class="main-btn" onclick="inscrire()">S'inscrire</button>
-    <p style="text-align:center; margin-top:15px; font-size:0.9rem;"><a href="/connexion" style="color:#d4fb79;">Se connecter</a></p>
+    <button class="main-btn" onclick="inscrire()">S'INSCRIRE</button>
+    
+    <div class="link-text">
+        Déjà un compte ? <a href="/connexion">Se connecter</a>
+    </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -82,14 +182,14 @@
         document.getElementById('btnC').className = r === 'chauffeur' ? 'active' : '';
         
         const driverDiv = document.getElementById('driverFields');
-        const mapDiv = document.getElementById('mapSelection');
-        const controls = document.getElementById('mapControls');
 
         if(r === 'chauffeur') {
             driverDiv.style.display = 'block';
-            mapDiv.style.display = 'block';
-            controls.style.display = 'flex';
-            initMap();
+            // Un petit délai est nécessaire pour que la carte s'initialise correctement si elle était cachée
+            setTimeout(() => {
+                initMap();
+                map.invalidateSize(); 
+            }, 100);
         } else {
             driverDiv.style.display = 'none';
         }
@@ -97,7 +197,7 @@
 
     function initMap() {
         if(map) return; // Déjà initialisée
-        map = L.map('mapSelection').setView([36.72, 4.05], 10); // Centré sur Tizi/Kabylie
+        map = L.map('mapSelection', { zoomControl: false }).setView([36.72, 4.05], 10); // Centré sur Tizi/Kabylie
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
         map.on('click', async function(e) {
@@ -115,7 +215,7 @@
                 document.getElementById('dep_lat').value = lat;
                 document.getElementById('dep_lon').value = lon;
                 
-                // Passe automatiquement à l'étape suivante
+                // Passe automatiquement à l'étape suivante pour fluidifier
                 setMode('arrivee');
             } else {
                 if(markerArr) map.removeLayer(markerArr);
@@ -147,7 +247,7 @@
             const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
             const data = await res.json();
             // On cherche le meilleur nom possible (Ville, Village, ou Quartier)
-            return data.address.city || data.address.town || data.address.village || data.address.county || "Position Inconnue";
+            return data.address.city || data.address.town || data.address.village || data.address.county || "Position GPS";
         } catch(e) {
             return "Position GPS";
         }
@@ -159,31 +259,50 @@
             nom: document.getElementById('nom').value,
             tel: document.getElementById('tel').value,
             email: document.getElementById('email').value,
-            password: document.getElementById('password').value,
-            
-            // Données Chauffeur
-            v_depart: document.getElementById('v_depart').value,
-            v_arrivee: document.getElementById('v_arrivee').value,
-            matricule: document.getElementById('matricule').value,
-            modele: document.getElementById('modele').value,
-            
-            // COORDONNÉES EXACTES
-            dep_lat: document.getElementById('dep_lat').value,
-            dep_lon: document.getElementById('dep_lon').value,
-            arr_lat: document.getElementById('arr_lat').value,
-            arr_lon: document.getElementById('arr_lon').value
+            password: document.getElementById('password').value
         };
 
-        const res = await fetch('/api/register', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(data)
-        });
-        
-        if(res.ok) {
-            alert("Compte créé !");
-            window.location.href = '/connexion';
-        } else {
-            alert("Erreur inscription");
+        if(role === 'chauffeur') {
+            data.v_depart = document.getElementById('v_depart').value;
+            data.v_arrivee = document.getElementById('v_arrivee').value;
+            data.matricule = document.getElementById('matricule').value;
+            data.modele = document.getElementById('modele').value;
+            
+            // COORDONNÉES EXACTES
+            data.dep_lat = document.getElementById('dep_lat').value;
+            data.dep_lon = document.getElementById('dep_lon').value;
+            data.arr_lat = document.getElementById('arr_lat').value;
+            data.arr_lon = document.getElementById('arr_lon').value;
+
+            if(!data.v_depart || !data.v_arrivee) {
+                return alert("Veuillez sélectionner votre ligne sur la carte (Départ et Arrivée).");
+            }
+        }
+
+        if(!data.email || !data.password) return alert("Remplissez tous les champs obligatoires.");
+
+        const btn = document.querySelector('.main-btn');
+        btn.innerText = "Création en cours...";
+
+        try {
+            const res = await fetch('https://finaltrans.onrender.com/api/register', {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            
+            const resp = await res.json();
+
+            if(resp.status === "success") {
+                alert("Compte créé avec succès !");
+                window.location.href = '/connexion';
+            } else {
+                alert("Erreur: " + (resp.error || "Problème inconnu"));
+                btn.innerText = "S'inscrire";
+            }
+        } catch(e) {
+            console.error(e);
+            alert("Erreur réseau");
+            btn.innerText = "S'inscrire";
         }
     }
 </script>

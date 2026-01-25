@@ -127,7 +127,7 @@ def login():
         return jsonify({"error": "Rôle inconnu"}), 400
     except: return jsonify({"error": "Email ou mot de passe incorrect"}), 401
 
-# --- API 3 : MISE A JOUR POSITION (AMÉLIORÉE POUR VOYAGEURS) ---
+# --- API 3 : MISE A JOUR POSITION (CORRIGÉE DIRECTION VOYAGEURS) ---
 @app.route('/api/update-position', methods=['POST'])
 def update_position():
     data = request.json
@@ -175,7 +175,7 @@ def update_position():
         }).execute()
 
         # ======================================================================
-        # 🆕 NOUVEAU : ENVOYER LES VOYAGEURS QUI ATTENDENT AU CHAUFFEUR
+        # 🆕 CORRECTION : FILTRER VOYAGEURS PAR DIRECTION
         # ======================================================================
         voyageurs_visibles = []
         try:
@@ -185,15 +185,17 @@ def update_position():
             requests = supabase.table('passenger_requests').select('*').gt('created_at', fifteen_mins_ago).execute().data
             
             if requests:
+                current_dest_clean = destination_actuelle.lower().strip()
+                
                 for req in requests:
-                    r_dep = (req.get('depart_text') or "").lower()
-                    r_arr = (req.get('arrivee_text') or "").lower()
-                    d_dep = v_dep_nom.lower()
-                    d_arr = v_arr_nom.lower()
-
-                    # Est-ce que ce voyageur cherche ma ligne ? (Aller ou Retour)
+                    r_arr = (req.get('arrivee_text') or "").lower().strip()
+                    
+                    # LOGIQUE DIRECTIONNELLE : 
+                    # Le voyageur veut-il aller là où le chauffeur va ?
                     is_match = False
-                    if (r_dep in d_dep and r_arr in d_arr) or (r_dep in d_arr and r_arr in d_dep):
+                    
+                    # Si le voyageur a précisé une arrivée, elle doit correspondre à la destination actuelle du bus
+                    if r_arr and current_dest_clean and (r_arr in current_dest_clean or current_dest_clean in r_arr):
                         is_match = True
                     
                     if is_match and req.get('user_lat'):
@@ -208,7 +210,7 @@ def update_position():
         return jsonify({
             "status": "updated", 
             "direction": destination_actuelle,
-            "voyageurs": voyageurs_visibles # Le chauffeur reçoit la liste ici
+            "voyageurs": voyageurs_visibles # Le chauffeur reçoit UNIQUEMENT les voyageurs de sa direction
         })
         
     except Exception as e: return jsonify({"error": str(e)}), 500
@@ -332,6 +334,8 @@ def api_trouver_bus():
                 dist_bus_to_dest = haversine(trip['current_lat'], trip['current_lon'], coord_destination_user['lat'], coord_destination_user['lon'])
 
                 # SI (Distance Bus->Dest) < (Distance Moi->Dest) ALORS le bus est plus proche de l'arrivée que moi.
+                # Donc il est devant moi. Donc il ne peut pas me prendre.
+                # On ajoute une marge de 2km pour les erreurs GPS.
                 if dist_bus_to_dest < (dist_user_to_dest - 2.0):
                     # Bus ignoré (Déjà passé)
                     continue 

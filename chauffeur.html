@@ -191,6 +191,15 @@
         let markerDep, markerArr;
         let isEditingMap = false;
 
+        // --- NOUVEAU : GESTION DES VOYAGEURS ---
+        const iconClient = L.icon({
+            iconUrl: 'https://cdn-icons-png.flaticon.com/512/3214/3214746.png', // Icône Personne
+            iconSize: [30, 30],
+            iconAnchor: [15, 30],
+            popupAnchor: [0, -30]
+        });
+        let clientMarkers = []; // Pour stocker les marqueurs et les effacer
+
         // --- INITIALISATION ---
         function init() {
             // Remplir le formulaire
@@ -316,14 +325,38 @@
                             map.setView([lat, lon], 16);
                         } else {
                             userMarker.setLatLng([lat, lon]);
-                            // map.panTo([lat, lon]); // Optionnel : Suivre le chauffeur
                         }
 
-                        // Envoi Serveur
+                        // Envoi Serveur & Réception des Voyageurs
                         fetch(SERVER_URL + '/api/update-position', {
                             method: 'POST', headers: {'Content-Type': 'application/json'},
                             body: JSON.stringify({ id: session.user.id, lat: lat, lon: lon })
-                        }).catch(e => console.log("Erreur envoi pos"));
+                        })
+                        .then(r => r.json())
+                        .then(data => {
+                            // --- AFFICHAGE DES VOYAGEURS SUR LA CARTE ---
+                            if(data.voyageurs) {
+                                // 1. Nettoyer les anciens marqueurs
+                                clientMarkers.forEach(m => map.removeLayer(m));
+                                clientMarkers = [];
+
+                                // 2. Ajouter les nouveaux
+                                data.voyageurs.forEach(v => {
+                                    const m = L.marker([v.lat, v.lon], {icon: iconClient})
+                                        .addTo(map)
+                                        .bindPopup('<div style="color:black; font-weight:bold;">Voyageur en attente</div>');
+                                    clientMarkers.push(m);
+                                });
+
+                                // Mise à jour du texte de statut
+                                if(data.voyageurs.length > 0) {
+                                    statusText.innerText = `EN LIGNE (${data.voyageurs.length})`;
+                                } else {
+                                    statusText.innerText = "EN LIGNE";
+                                }
+                            }
+                        })
+                        .catch(e => console.log("Erreur envoi pos"));
                     },
                     err => alert("Activez votre GPS !"),
                     { enableHighAccuracy: true }
@@ -343,6 +376,10 @@
                 btn.classList.remove('offline');
                 statusText.innerText = "HORS LIGNE";
                 statusDot.classList.remove('active');
+                
+                // Nettoyer les voyageurs quand on se déconnecte
+                clientMarkers.forEach(m => map.removeLayer(m));
+                clientMarkers = [];
             }
         }
 

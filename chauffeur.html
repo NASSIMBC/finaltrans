@@ -1,99 +1,361 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-theme="dark">
 <head>
     <title>Espace Chauffeur</title>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#0f172a">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@500;700;800&display=swap" rel="stylesheet">
+
     <style>
-        body { background: #0f172a; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        .status-box { background: #1e293b; padding: 30px; border-radius: 20px; text-align: center; width: 90%; max-width: 350px; }
-        .line-info { color: #94a3b8; margin-bottom: 20px; font-size: 0.9rem; }
-        .line-route { font-size: 1.2rem; font-weight: bold; color: white; margin-bottom: 30px; }
+        :root {
+            --bg-dark: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.95);
+            --accent: #d4fb79; /* Vert Néon */
+            --danger: #ef4444; /* Rouge */
+            --text-main: #ffffff;
+        }
+
+        body { margin: 0; font-family: 'Urbanist', sans-serif; background: black; overflow: hidden; }
         
-        .btn-action { width: 100%; padding: 20px; font-size: 1.2rem; border-radius: 15px; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        .btn-start { background: #d4fb79; color: black; box-shadow: 0 0 15px rgba(212, 251, 121, 0.3); }
-        .btn-stop { background: #ef4444; color: white; display: none; }
+        #map { height: 100vh; width: 100%; z-index: 1; }
+        .leaflet-control-attribution { display: none; }
+
+        /* --- HEADER FLOTTANT --- */
+        .top-bar {
+            position: absolute; top: 20px; left: 20px; right: 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            z-index: 1000; pointer-events: none;
+        }
         
-        .status-badge { display: inline-block; padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; margin-top: 20px; background: #334155; }
-        .live-anim { width: 10px; height: 10px; background: #ef4444; border-radius: 50%; display: inline-block; margin-right: 5px; animation: blink 1s infinite; }
-        @keyframes blink { 50% { opacity: 0; } }
+        .profile-btn {
+            pointer-events: auto;
+            background: var(--card-bg); width: 45px; height: 45px;
+            border-radius: 50%; display: flex; justify-content: center; align-items: center;
+            border: 2px solid var(--accent); cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        .status-badge {
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(5px);
+            padding: 8px 15px; border-radius: 20px; color: white;
+            font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 8px;
+        }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #64748b; }
+        .status-dot.active { background: var(--danger); animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.5; } }
+
+        /* --- BOUTON GO FLOTTANT --- */
+        .bottom-controls {
+            position: absolute; bottom: 40px; left: 0; right: 0;
+            display: flex; justify-content: center; z-index: 1000;
+            pointer-events: none;
+        }
+
+        .btn-go {
+            pointer-events: auto;
+            width: 80px; height: 80px; border-radius: 50%;
+            background: var(--accent); border: 4px solid rgba(255,255,255,0.2);
+            color: black; font-weight: 900; font-size: 1.2rem;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; box-shadow: 0 0 30px rgba(212, 251, 121, 0.4);
+            transition: 0.3s;
+        }
+        .btn-go.offline { background: var(--danger); color: white; box-shadow: 0 0 30px rgba(239, 68, 68, 0.4); }
+
+        /* --- MODAL PROFIL / REGLAGES --- */
+        .modal-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 2000;
+            display: flex; justify-content: center; align-items: flex-end;
+            visibility: hidden; opacity: 0; transition: 0.3s;
+        }
+        .modal-overlay.active { visibility: visible; opacity: 1; }
+
+        .modal-card {
+            background: #1e293b; width: 100%; border-top-left-radius: 25px; border-top-right-radius: 25px;
+            padding: 25px; transform: translateY(100%); transition: 0.3s;
+            max-height: 80vh; overflow-y: auto;
+        }
+        .modal-overlay.active .modal-card { transform: translateY(0); }
+
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-title { font-size: 1.2rem; font-weight: 800; color: white; }
+        .btn-close { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
+
+        .input-group { margin-bottom: 15px; }
+        .input-label { display: block; color: #94a3b8; font-size: 0.8rem; margin-bottom: 5px; }
+        .input-field {
+            width: 100%; padding: 14px; background: #0f172a; border: 1px solid #334155;
+            border-radius: 12px; color: white; font-family: inherit; box-sizing: border-box;
+        }
+        
+        .section-title { color: var(--accent); font-weight: 800; margin: 20px 0 10px 0; font-size: 0.9rem; text-transform: uppercase; }
+
+        .btn-save {
+            width: 100%; padding: 15px; background: white; color: black;
+            border: none; border-radius: 12px; font-weight: 800; margin-top: 20px; cursor: pointer;
+        }
+        
+        /* Indicateur Mode Édition Carte */
+        .edit-mode-indicator {
+            position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
+            background: var(--accent); color: black; padding: 10px 20px;
+            border-radius: 30px; font-weight: 800; font-size: 0.8rem;
+            z-index: 1000; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
     </style>
 </head>
 <body>
-    <div class="status-box">
-        <div class="line-info">VOTRE LIGNE</div>
-        <div class="line-route" id="lineName">Chargement...</div>
 
-        <button class="btn-action btn-start" id="btnStart" onclick="toggleGPS()">
-            EN LIGNE
-        </button>
-        <button class="btn-action btn-stop" id="btnStop" onclick="toggleGPS()">
-            HORS LIGNE
-        </button>
+    <script>if(!localStorage.getItem('user_session')) window.location.href = '/connexion';</script>
 
-        <div class="status-badge" id="statusBadge">🔴 Hors ligne</div>
-        <p id="directionDebug" style="color: #64748b; font-size: 0.8rem; margin-top: 10px;"></p>
+    <div id="map"></div>
+
+    <div class="top-bar">
+        <div class="profile-btn" onclick="toggleProfile()">
+            <i class="fas fa-user"></i>
+        </div>
+        <div class="status-badge">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText">HORS LIGNE</span>
+        </div>
     </div>
 
+    <div class="edit-mode-indicator" id="editIndicator">
+        MODE ÉDITION : DÉPLACEZ LES DRAPEAUX
+    </div>
+
+    <div class="bottom-controls">
+        <div class="btn-go" id="btnGo" onclick="toggleGPS()">GO</div>
+    </div>
+
+    <div class="modal-overlay" id="profileModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div class="modal-title">Mon Profil & Ligne</div>
+                <button class="btn-close" onclick="toggleProfile()"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="section-title">Informations</div>
+            <div class="input-group">
+                <label class="input-label">Nom Complet</label>
+                <input type="text" class="input-field" id="pName">
+            </div>
+            <div class="input-group">
+                <label class="input-label">Véhicule (Modèle)</label>
+                <input type="text" class="input-field" id="pModele">
+            </div>
+            <div class="input-group">
+                <label class="input-label">Matricule</label>
+                <input type="text" class="input-field" id="pMatricule">
+            </div>
+
+            <div class="section-title">Réglages de la Ligne</div>
+            <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:15px;">
+                Modifiez ici le nom des villes ou ajustez les points GPS exacts sur la carte.
+            </p>
+            <div class="input-group">
+                <label class="input-label">Ville Départ</label>
+                <input type="text" class="input-field" id="pVdep">
+            </div>
+            <div class="input-group">
+                <label class="input-label">Ville Arrivée</label>
+                <input type="text" class="input-field" id="pVarr">
+            </div>
+
+            <button class="btn-save" style="background:var(--accent);" onclick="activerModeEdition()">
+                <i class="fas fa-map-marker-alt"></i> AJUSTER SUR LA CARTE
+            </button>
+
+            <button class="btn-save" onclick="sauvegarderProfil()">ENREGISTRER TOUT</button>
+            
+            <button class="btn-save" style="background:#334155; color:white; margin-top:10px;" onclick="deconnexion()">
+                Se déconnecter
+            </button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
     <script>
-        // --- 1. CONFIGURATION DU SERVEUR ---
-        // REMPLACEZ L'ADRESSE CI-DESSOUS PAR VOTRE LIEN RENDER (ex: https://tizi-transport.onrender.com)
         const SERVER_URL = "https://finaltrans.onrender.com"; 
-
-        // Protection de session
         const session = JSON.parse(localStorage.getItem('user_session'));
-        if(!session || session.role !== 'chauffeur') window.location.href = 'connexion.html'; // Lien relatif vers le fichier local
         
-        const vDep = session.user.ville_depart || '?';
-        const vArr = session.user.ville_arrivee || '?';
-        document.getElementById('lineName').innerText = `${vDep.toUpperCase()} ↔ ${vArr.toUpperCase()}`;
-
+        let map, userMarker;
         let watchId = null;
+        let isOnline = false;
 
-        function toggleGPS() {
-            if(!watchId) {
-                // START
-                document.getElementById('btnStart').style.display = 'none';
-                document.getElementById('btnStop').style.display = 'block';
-                document.getElementById('statusBadge').innerHTML = '<div class="live-anim"></div> EN DIRECT';
-                document.getElementById('statusBadge').style.background = 'rgba(239, 68, 68, 0.2)';
-                document.getElementById('statusBadge').style.color = '#ef4444';
+        // Marqueurs Ligne
+        let markerDep, markerArr;
+        let isEditingMap = false;
 
-                // On utilise SERVER_URL ici
-                watchId = navigator.geolocation.watchPosition(pos => {
-                    fetch(SERVER_URL + '/api/update-position', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            id: session.user.id,
-                            lat: pos.coords.latitude,
-                            lon: pos.coords.longitude
-                        })
-                    })
-                    .then(r => r.json())
-                    .then(data => {
-                        if(data.direction) {
-                            document.getElementById('directionDebug').innerText = "Direction détectée : Vers " + data.direction.toUpperCase();
-                        }
-                    })
-                    .catch(err => console.error("Erreur connexion serveur:", err));
+        // --- INITIALISATION ---
+        function init() {
+            // Remplir le formulaire
+            document.getElementById('pName').value = session.user.nom_complet || '';
+            document.getElementById('pModele').value = session.user.modele_vehicule || '';
+            document.getElementById('pMatricule').value = session.user.matricule_vehicule || '';
+            document.getElementById('pVdep').value = session.user.ville_depart || '';
+            document.getElementById('pVarr').value = session.user.ville_arrivee || '';
 
-                }, err => alert("Erreur GPS : Activez la localisation"), {enableHighAccuracy: true});
+            // Carte centrée sur Tizi par défaut ou dernière pos
+            const startLat = session.user.dep_lat || 36.72;
+            const startLon = session.user.dep_lon || 4.05;
+            
+            map = L.map('map', { zoomControl: false }).setView([startLat, startLon], 13);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-            } else {
-                // STOP
-                navigator.geolocation.clearWatch(watchId);
-                watchId = null;
-                document.getElementById('btnStart').style.display = 'block';
-                document.getElementById('btnStop').style.display = 'none';
-                document.getElementById('statusBadge').innerText = '🔴 Hors ligne';
-                document.getElementById('statusBadge').style.background = '#334155';
-                document.getElementById('statusBadge').style.color = 'white';
-                document.getElementById('directionDebug').innerText = "";
+            // Charger les points de la ligne (Lecture seule au début)
+            chargerLigneSurCarte();
+        }
+
+        // --- GESTION DE LA LIGNE (DRAPEAUX) ---
+        function chargerLigneSurCarte() {
+            const iconDep = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', iconSize: [25, 41], iconAnchor: [12, 41] });
+            const iconArr = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', iconSize: [25, 41], iconAnchor: [12, 41] });
+
+            if(session.user.dep_lat) {
+                if(markerDep) map.removeLayer(markerDep);
+                markerDep = L.marker([session.user.dep_lat, session.user.dep_lon], {icon: iconDep, draggable: false}).addTo(map);
+            }
+            if(session.user.arr_lat) {
+                if(markerArr) map.removeLayer(markerArr);
+                markerArr = L.marker([session.user.arr_lat, session.user.arr_lon], {icon: iconArr, draggable: false}).addTo(map);
             }
         }
+
+        function activerModeEdition() {
+            toggleProfile(); // Ferme le modal
+            isEditingMap = true;
+            document.getElementById('editIndicator').style.display = 'block';
+
+            // Rendre les marqueurs glissables
+            if(markerDep) markerDep.dragging.enable();
+            if(markerArr) markerArr.dragging.enable();
+
+            // Créer les marqueurs s'ils n'existent pas encore (au centre de la carte)
+            const center = map.getCenter();
+            if(!markerDep) {
+                const iconDep = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', iconSize: [25, 41], iconAnchor: [12, 41] });
+                markerDep = L.marker([center.lat, center.lng - 0.01], {icon: iconDep, draggable: true}).addTo(map);
+            }
+            if(!markerArr) {
+                const iconArr = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', iconSize: [25, 41], iconAnchor: [12, 41] });
+                markerArr = L.marker([center.lat, center.lng + 0.01], {icon: iconArr, draggable: true}).addTo(map);
+            }
+
+            alert("Déplacez les drapeaux Vert (Départ) et Rouge (Arrivée) puis retournez dans le profil pour Enregistrer.");
+        }
+
+        // --- SAUVEGARDE PROFIL & GPS ---
+        async function sauvegarderProfil() {
+            const data = {
+                id: session.user.id,
+                nom_complet: document.getElementById('pName').value,
+                modele_vehicule: document.getElementById('pModele').value,
+                matricule_vehicule: document.getElementById('pMatricule').value,
+                ville_depart: document.getElementById('pVdep').value,
+                ville_arrivee: document.getElementById('pVarr').value,
+            };
+
+            // Si on a édité la carte, on récupère les nouvelles pos
+            if(markerDep) {
+                const pos = markerDep.getLatLng();
+                data.dep_lat = pos.lat;
+                data.dep_lon = pos.lng;
+            }
+            if(markerArr) {
+                const pos = markerArr.getLatLng();
+                data.arr_lat = pos.lat;
+                data.arr_lon = pos.lng;
+            }
+
+            try {
+                const res = await fetch(SERVER_URL + '/api/update-driver-profile', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+                
+                if(res.ok) {
+                    alert("Profil mis à jour !");
+                    // Mise à jour session locale
+                    const updatedUser = {...session.user, ...data};
+                    localStorage.setItem('user_session', JSON.stringify({role: 'chauffeur', user: updatedUser}));
+                    window.location.reload();
+                } else {
+                    alert("Erreur sauvegarde");
+                }
+            } catch(e) { console.error(e); alert("Erreur connexion"); }
+        }
+
+        // --- GPS EN LIGNE / HORS LIGNE ---
+        function toggleGPS() {
+            const btn = document.getElementById('btnGo');
+            const statusText = document.getElementById('statusText');
+            const statusDot = document.getElementById('statusDot');
+
+            if(!isOnline) {
+                // GO ONLINE
+                watchId = navigator.geolocation.watchPosition(
+                    pos => {
+                        const lat = pos.coords.latitude;
+                        const lon = pos.coords.longitude;
+
+                        // Mise à jour carte
+                        if(!userMarker) {
+                            // Icone Flèche Bleue
+                            const iconArrow = L.divIcon({
+                                className: 'custom-div-icon',
+                                html: `<div style="background:#3b82f6; width:20px; height:20px; border-radius:50%; border:3px solid white; box-shadow:0 0 10px #3b82f6;"></div>`,
+                                iconSize: [20, 20],
+                                iconAnchor: [10, 10]
+                            });
+                            userMarker = L.marker([lat, lon], {icon: iconArrow}).addTo(map);
+                            map.setView([lat, lon], 16);
+                        } else {
+                            userMarker.setLatLng([lat, lon]);
+                            // map.panTo([lat, lon]); // Optionnel : Suivre le chauffeur
+                        }
+
+                        // Envoi Serveur
+                        fetch(SERVER_URL + '/api/update-position', {
+                            method: 'POST', headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify({ id: session.user.id, lat: lat, lon: lon })
+                        }).catch(e => console.log("Erreur envoi pos"));
+                    },
+                    err => alert("Activez votre GPS !"),
+                    { enableHighAccuracy: true }
+                );
+
+                isOnline = true;
+                btn.innerText = "STOP";
+                btn.classList.add('offline');
+                statusText.innerText = "EN LIGNE";
+                statusDot.classList.add('active');
+
+            } else {
+                // GO OFFLINE
+                navigator.geolocation.clearWatch(watchId);
+                isOnline = false;
+                btn.innerText = "GO";
+                btn.classList.remove('offline');
+                statusText.innerText = "HORS LIGNE";
+                statusDot.classList.remove('active');
+            }
+        }
+
+        // UI Helpers
+        function toggleProfile() {
+            document.getElementById('profileModal').classList.toggle('active');
+        }
+        function deconnexion() {
+            localStorage.removeItem('user_session');
+            window.location.href = '/connexion';
+        }
+
+        init();
     </script>
 </body>
 </html>

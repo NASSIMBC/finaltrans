@@ -192,13 +192,16 @@ def api_trouver_bus():
     user_lat = data.get('user_lat')
     user_lon = data.get('user_lon')
 
+    # --- FONCTION DE NETTOYAGE ---
     def clean_text(t):
         if not t: return ""
         return t.lower().replace('-', ' ').strip()
 
+    # 1. Récupération des textes
     txt_dep = clean_text(data.get('depart_text', ''))
     txt_arr = clean_text(data.get('arrivee_text', ''))
 
+    # On vérifie si au moins UN des champs est rempli
     has_dep = len(txt_dep) > 0
     has_arr = len(txt_arr) > 0
     recherche_active = (has_dep or has_arr)
@@ -217,26 +220,40 @@ def api_trouver_bus():
                 driver = driver_req.data[0]
             except: continue
 
+            # Ligne du chauffeur nettoyée
             l_dep = clean_text(driver.get('ville_depart', ''))
             l_arr = clean_text(driver.get('ville_arrivee', ''))
+            
+            # Direction actuelle du bus (nettoyée pour comparaison)
+            direction_reelle = clean_text(trip.get('direction_actuelle', ''))
 
-            # --- FILTRE ---
+            # --- 2. FILTRE DE LIGNE (Est-ce que le bus fait ce trajet ?) ---
             if recherche_active:
                 is_match_aller = True
                 is_match_retour = True
 
-                # SENS ALLER
+                # TEST SENS ALLER
                 if has_dep and txt_dep not in l_dep: is_match_aller = False
                 if has_arr and txt_arr not in l_arr: is_match_aller = False
 
-                # SENS RETOUR
+                # TEST SENS RETOUR
                 if has_dep and txt_dep not in l_arr: is_match_retour = False
                 if has_arr and txt_arr not in l_dep: is_match_retour = False
 
                 if not is_match_aller and not is_match_retour:
                     continue 
 
-            # --- COORDONNÉES EXACTES ---
+            # --- 3. NOUVEAU : FILTRE DE DIRECTION (Est-ce qu'il va dans le bon sens ?) ---
+            # Si le bus a une direction connue et que l'utilisateur cherche une Arrivée précise
+            if recherche_active and direction_reelle and direction_reelle != "inconnue":
+                
+                # Cas Critique : L'utilisateur veut aller à "Tizi", mais le bus va vers "Alger"
+                if has_arr:
+                    # Si la destination demandée n'est PAS dans la direction du bus
+                    if txt_arr not in direction_reelle:
+                        continue # On cache ce bus car il va dans le sens opposé
+
+            # --- 4. LOGIQUE TERMINUS & DONNÉES ---
             coord_dep = None
             if driver.get('dep_lat') and driver.get('dep_lon'):
                 coord_dep = {'lat': driver['dep_lat'], 'lon': driver['dep_lon']}
@@ -245,10 +262,10 @@ def api_trouver_bus():
             if driver.get('arr_lat') and driver.get('arr_lon'):
                 coord_arr = {'lat': driver['arr_lat'], 'lon': driver['arr_lon']}
 
-            # Fallback CITIES_DB
+            # Fallback CITIES_DB (Si pas de GPS précis enregistré)
             if not coord_dep: 
                 coord_dep = CITIES_DB.get(l_dep)
-                if not coord_dep:
+                if not coord_dep: 
                     for k in CITIES_DB: 
                         if k in l_dep: coord_dep = CITIES_DB[k]; break
             
@@ -258,19 +275,20 @@ def api_trouver_bus():
                     for k in CITIES_DB:
                         if k in l_arr: coord_arr = CITIES_DB[k]; break
 
-            # Terminus
-            direction = trip.get('direction_actuelle')
+            # Terminus Visuel sur la carte
             terminus_officiel = None
             
-            if direction:
-                d_clean = clean_text(direction)
-                if d_clean in l_arr: terminus_officiel = coord_arr
-                elif d_clean in l_dep: terminus_officiel = coord_dep
+            # Logique direction basée sur la donnée GPS
+            if direction_reelle:
+                if direction_reelle in l_arr: terminus_officiel = coord_arr
+                elif direction_reelle in l_dep: terminus_officiel = coord_dep
             
+            # Si direction inconnue, on devine selon la recherche
             if not terminus_officiel and recherche_active:
                 if has_arr and txt_arr in l_arr: terminus_officiel = coord_arr
                 elif has_arr and txt_arr in l_dep: terminus_officiel = coord_dep
 
+            # Calcul Distance
             dist_user = 0
             if user_lat and trip['current_lat']:
                 dist_user = haversine(user_lat, user_lon, trip['current_lat'], trip['current_lon'])
@@ -283,7 +301,7 @@ def api_trouver_bus():
                 'current_lat': trip['current_lat'],
                 'current_lon': trip['current_lon'],
                 'distance_km': round(dist_user, 1),
-                'direction': direction,
+                'direction': trip.get('direction_actuelle'), # On renvoie le texte original (Joli)
                 'terminus_officiel': terminus_officiel,
                 'ligne_start': coord_dep,
                 'ligne_end': coord_arr
@@ -293,7 +311,7 @@ def api_trouver_bus():
         return jsonify({"bus_proches": bus_proches})
 
     except Exception as e:
-        print(f"🔴 ERREUR API: {e}")
+        print(f"🔴 ERREUR: {e}")
         return jsonify({"bus_proches": []})
 
 # --- API 5 : MISE A JOUR PROFIL CHAUFFEUR ---
@@ -326,5 +344,6 @@ def update_driver_profile():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
+
 
 

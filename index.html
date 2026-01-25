@@ -9,66 +9,73 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@500;700;800&display=swap" rel="stylesheet">
 
-    <style> 
-        /* --- THEME SOMBRE --- */
+    <style>
         :root {
-            --bg-color: #000000;
-            --card-bg: rgba(30, 30, 30, 0.95); /* Un peu plus opaque pour la lisibilité */
-            --text-main: #ffffff;
-            --text-sub: #a1a1aa;
+            --bg-dark: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.95); /* Fond semi-transparent */
             --accent: #d4fb79; /* Jaune Néon */
-            --input-bg: #2c2c2c;
-            --border: #3f3f46;
+            --text-main: #ffffff;
+            --text-muted: #94a3b8;
+            --border: rgba(255,255,255,0.1);
         }
 
-        body { margin: 0; font-family: 'Urbanist', sans-serif; overflow: hidden; background: var(--bg-color); color: var(--text-main); }
+        body { margin: 0; font-family: 'Urbanist', sans-serif; background: black; overflow: hidden; }
+        
         #map { height: 100vh; width: 100%; z-index: 1; }
+        .leaflet-control-attribution { display: none; }
 
-        /* --- NAV BAR --- */
-        .glass-nav {
-            position: absolute; top: 0; left: 0; right: 0;
-            padding: 20px; display: flex; justify-content: space-between; align-items: center;
+        /* HEADER FLOTTANT (Haut) */
+        .top-bar {
+            position: absolute; top: 20px; left: 20px; right: 20px;
+            display: flex; justify-content: space-between; align-items: center;
             z-index: 1000; pointer-events: none;
         }
 
-        .profile-container { pointer-events: auto; display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.5); padding: 5px 15px 5px 5px; border-radius: 50px; backdrop-filter: blur(5px); }
-        .profile-pic { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--accent); }
-        .welcome-text { display: flex; flex-direction: column; }
+        .profile-chip {
+            pointer-events: auto;
+            background: var(--card-bg); backdrop-filter: blur(10px);
+            padding: 8px 16px 8px 8px; border-radius: 50px;
+            display: flex; align-items: center; gap: 10px;
+            border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .profile-img { width: 35px; height: 35px; border-radius: 50%; border: 2px solid var(--accent); }
+        .profile-text { font-size: 0.9rem; color: white; font-weight: 700; }
         
-        .search-trigger {
+        .search-btn-top {
             pointer-events: auto; width: 45px; height: 45px; background: var(--card-bg);
             border-radius: 50%; display: flex; justify-content: center; align-items: center;
-            border: 1px solid var(--border); cursor: pointer; backdrop-filter: blur(10px);
+            border: 1px solid var(--border); cursor: pointer; color: white;
+            backdrop-filter: blur(10px);
         }
 
-        /* --- MODAL RECHERCHE --- */
+        /* OVERLAY RECHERCHE (Plein écran) */
         .search-overlay {
-            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.8); z-index: 2000; backdrop-filter: blur(5px);
-            display: flex; justify-content: center; align-items: flex-start; padding-top: 80px;
-            opacity: 0; pointer-events: none; transition: 0.3s;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.95); z-index: 2000;
+            transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex; flex-direction: column; padding: 20px; box-sizing: border-box;
         }
-        .search-overlay.active { opacity: 1; pointer-events: auto; }
+        .search-overlay.active { transform: translateY(0); }
 
         .search-card {
-            width: 85%; max-width: 400px; background: var(--card-bg);
-            border-radius: 24px; padding: 25px; border: 1px solid var(--border);
-            transform: translateY(-20px); transition: 0.4s;
+            background: var(--card-bg); padding: 25px; border-radius: 25px;
+            border: 1px solid var(--border); width: 100%; max-width: 400px; margin: 50px auto 0 auto;
+            box-sizing: border-box;
         }
-        .search-overlay.active .search-card { transform: translateY(0); }
-
-        .card-title { font-size: 1.4rem; font-weight: 800; margin-bottom: 20px; }
+        
+        .card-title { font-size: 1.4rem; font-weight: 800; margin-bottom: 20px; color: white; display: flex; justify-content: space-between; align-items: center; }
+        .btn-close { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
 
         .route-visual { display: flex; gap: 15px; }
         .dots-col { display: flex; flex-direction: column; align-items: center; padding-top: 15px; }
         .dot-start { width: 12px; height: 12px; background: var(--accent); border-radius: 50%; }
-        .line { width: 2px; height: 50px; background: var(--text-sub); opacity: 0.3; margin: 5px 0; }
+        .line { width: 2px; height: 50px; background: var(--text-muted); opacity: 0.3; margin: 5px 0; }
         .dot-end { width: 12px; height: 12px; border: 2px solid #ef4444; border-radius: 50%; }
         
         .inputs-col { flex: 1; display: flex; flex-direction: column; gap: 15px; }
         .input-field {
             width: 100%; padding: 16px; border-radius: 12px; border: none;
-            background: var(--input-bg); color: white; font-weight: 600;
+            background: #0f172a; color: white; font-weight: 600; border: 1px solid var(--border);
             font-family: 'Urbanist', sans-serif; outline: none; box-sizing: border-box;
         }
         .btn-main {
@@ -76,42 +83,30 @@
             background: var(--accent); color: black; font-size: 1rem; font-weight: 800;
             cursor: pointer; margin-top: 25px;
         }
-        .btn-close { position: absolute; top: 15px; right: 15px; background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer; }
 
-        /* --- RESULTATS (Bottom Sheet Amélioré) --- */
+        /* PANNEAU RESULTATS (TIROIR BAS) */
         .bottom-sheet {
             position: absolute; bottom: 20px; left: 15px; right: 15px;
             background: var(--card-bg); backdrop-filter: blur(20px);
-            border-radius: 24px; padding: 0 20px 20px 20px; z-index: 999; border: 1px solid var(--border);
-            transform: translateY(150%); transition: transform 0.4s cubic-bezier(0.33, 1, 0.68, 1); 
+            border-radius: 24px; padding: 0 20px 20px 20px; z-index: 1500; border: 1px solid var(--border);
+            transform: translateY(150%); transition: transform 0.4s cubic-bezier(0.33, 1, 0.68, 1);
             max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column;
             box-shadow: 0 10px 40px rgba(0,0,0,0.5);
         }
         .bottom-sheet.active { transform: translateY(0); }
 
-        /* En-tête de la liste (Nouveau) */
         .sheet-header {
             position: sticky; top: 0; background: inherit; z-index: 10;
-            padding-top: 15px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-top: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
             margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
         }
+        .drag-handle { width: 40px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 10px; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); }
+        .sheet-title { font-weight: 800; color: var(--text-muted); font-size: 0.8rem; letter-spacing: 1px; }
         
-        .drag-handle {
-            width: 40px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 10px;
-            position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
-        }
+        /* Croix de fermeture Résultats */
+        .btn-close-sheet { background: rgba(255,255,255,0.1); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; justify-content: center; align-items: center; }
 
-        .sheet-title { font-weight: 800; color: #94a3b8; font-size: 0.8rem; letter-spacing: 1px; }
-
-        .btn-close-sheet {
-            background: rgba(255,255,255,0.1); border: none; color: white;
-            width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
-            display: flex; justify-content: center; align-items: center;
-            transition: 0.2s;
-        }
-        .btn-close-sheet:active { background: rgba(255,255,255,0.3); }
-
-        /* Liste des bus */
+        /* LISTE BUS */
         .bus-item {
             display: flex; align-items: center; padding: 15px;
             background: rgba(255,255,255,0.03); border-radius: 16px;
@@ -119,37 +114,35 @@
         }
         .bus-item:active { background: rgba(212, 251, 121, 0.1); border-color: var(--accent); }
         .bus-info { flex: 1; margin-left: 15px; }
-        .bus-name { font-weight: 800; font-size: 1rem; }
-        .bus-sub { font-size: 0.85rem; color: var(--text-sub); }
-        .bus-dist { color: var(--accent); font-weight: 700; }
-
-        .leaflet-control-attribution { display: none; }
+        .bus-name { color: white; font-weight: 800; font-size: 1rem; }
+        .bus-meta { color: var(--accent); font-size: 0.85rem; font-weight: 600; }
+        .bus-matricule { background: rgba(212, 251, 121, 0.15); padding: 2px 6px; border-radius: 4px; color: var(--accent); font-size: 0.75rem; margin-left: 5px; }
+        .bus-distance { color: white; font-weight: 700; }
     </style>
 </head>
 <body>
 
     <script>if(!localStorage.getItem('user_session')) window.location.href = '/connexion';</script>
 
-    <nav class="glass-nav">
-        <div class="profile-container">
-            <img src="https://ui-avatars.com/api/?name=User&background=random" class="profile-pic">
-            <div class="welcome-text">
-                <span id="txtBonjour" style="font-size:0.7rem; opacity:0.7;">Bonjour,</span>
-                <strong id="txtName" style="font-size:0.9rem;">Voyageur</strong>
-            </div>
+    <div class="top-bar">
+        <div class="profile-chip">
+            <img src="https://ui-avatars.com/api/?name=User&background=random" class="profile-img">
+            <div class="profile-text" id="txtName">Voyageur</div>
         </div>
-        <div class="search-trigger" onclick="toggleSearch()">
+        <div class="search-btn-top" onclick="toggleSearch()">
             <i class="fas fa-search"></i>
         </div>
-    </nav>
+    </div>
 
     <div id="map"></div>
 
     <div class="search-overlay active" id="searchOverlay">
         <div class="search-card">
-            <button class="btn-close" onclick="toggleSearch()"><i class="fas fa-times"></i></button>
-            <div class="card-title">Votre trajet</div>
-
+            <div class="card-title">
+                Trajet
+                <button class="btn-close" onclick="toggleSearch()"><i class="fas fa-times"></i></button>
+            </div>
+            
             <div class="route-visual">
                 <div class="dots-col">
                     <div class="dot-start"></div><div class="line"></div><div class="dot-end"></div>
@@ -168,7 +161,8 @@
 
     <div class="bottom-sheet" id="resultsSheet">
         <div class="sheet-header">
-            <div class="drag-handle"></div> <div class="sheet-title">RÉSULTATS</div>
+            <div class="drag-handle"></div>
+            <div class="sheet-title">RÉSULTATS</div>
             <button class="btn-close-sheet" onclick="fermerResultats()">
                 <i class="fas fa-times"></i>
             </button>
@@ -182,22 +176,20 @@
         let rechercheActive = false;
         let currentRouteLayer = null; 
 
-        // Session
         const session = JSON.parse(localStorage.getItem('user_session'));
         if(session && session.user.nom_complet) document.getElementById('txtName').innerText = session.user.nom_complet.split(' ')[0];
 
-        // Carte
+        // CARTE LEAFLET (GRATUITE - MODE SOMBRE)
         const map = L.map('map', { zoomControl: false }).setView([36.72, 4.05], 13);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-        // Icones
         const iconBus = L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/5030/5030991.png', iconSize: [40, 40], iconAnchor: [20, 20] });
         const iconUser = L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/5582/5582962.png', iconSize: [30, 30], iconAnchor: [15, 15] });
 
         let userLat, userLon, userMarker;
         let busMarkers = {};
 
-        // GPS
+        // GPS USER
         if (navigator.geolocation) {
             navigator.geolocation.watchPosition(pos => {
                 userLat = pos.coords.latitude;
@@ -218,29 +210,24 @@
             document.getElementById('searchOverlay').classList.toggle('active');
         }
 
-        // NOUVELLE FONCTION : Fermer la liste des résultats
         function fermerResultats() {
             document.getElementById('resultsSheet').classList.remove('active');
-            // On laisse la recherche active pour que les bus continuent de bouger sur la carte
-            // Si vous voulez tout arrêter, décommentez la ligne suivante :
-            // rechercheActive = false;
         }
 
         function lancerRecherche() {
             const dep = document.getElementById('txtDepart').value;
             const arr = document.getElementById('txtArrivee').value;
             
-            // Nettoyage visuel
             if (currentRouteLayer) { map.removeLayer(currentRouteLayer); currentRouteLayer = null; }
             document.querySelectorAll('.leaflet-marker-icon .terminus-flag').forEach(el => el.parentElement.remove());
 
-            if(!dep && !arr) return alert("Veuillez remplir au moins une ville !");
+            if(!dep && !arr) return alert("Remplissez au moins une ville !");
 
             rechercheActive = true;
             document.getElementById('searchOverlay').classList.remove('active');
-            document.getElementById('resultsSheet').classList.add('active'); // Affiche la liste
+            document.getElementById('resultsSheet').classList.add('active');
             
-            document.getElementById('busList').innerHTML = '<div style="text-align:center; padding:20px; color:#64748b;">Recherche en cours...</div>';
+            document.getElementById('busList').innerHTML = '<div style="text-align:center; padding:20px; color:#64748b;">Recherche...</div>';
             
             fetchBus();
         }
@@ -263,10 +250,8 @@
             } catch (e) { console.error("Erreur trajet:", e); }
         }
 
-        // --- RECUPERATION BUS ---
         async function fetchBus() {
             if(!rechercheActive) return;
-            
             const container = document.getElementById('busList');
             const dep = document.getElementById('txtDepart').value;
             const arr = document.getElementById('txtArrivee').value;
@@ -285,7 +270,14 @@
                 if(data.bus_proches && data.bus_proches.length > 0) {
                     data.bus_proches.forEach(bus => {
                         const m = L.marker([bus.current_lat, bus.current_lon], {icon: iconBus}).addTo(map);
-                        m.bindPopup(`<div style="text-align:center; color:black; font-family:sans-serif;"><strong>${bus.chauffeur}</strong><br><span style="font-size:0.9rem;">${bus.modele}</span><br><span style="background:#facc15; padding:2px 5px; border-radius:3px; font-weight:bold; font-size:0.8rem;">${bus.matricule}</span></div>`);
+                        
+                        m.bindPopup(`
+                            <div style="text-align:center; color:black;">
+                                <strong>${bus.chauffeur}</strong><br>
+                                <span style="font-size:0.8rem;">${bus.modele}</span><br>
+                                <span style="background:#facc15; padding:2px; font-weight:bold;">${bus.matricule}</span>
+                            </div>
+                        `);
                         m.on('click', () => { afficherTrajet(bus); });
                         busMarkers[bus.bus_id] = m;
 
@@ -297,12 +289,16 @@
                             </div>
                             <div class="bus-info">
                                 <div class="bus-name">${bus.chauffeur}</div>
-                                <div style="color:#d4fb79; font-size:0.85rem; font-weight:bold;">${bus.modele} • <span style="background:rgba(212, 251, 121, 0.2); padding:1px 6px; border-radius:4px;">${bus.matricule}</span></div>
+                                <div class="bus-meta">${bus.modele} • <span class="bus-matricule">${bus.matricule}</span></div>
                                 <div class="bus-sub">${bus.distance_km} km</div>
                             </div>
                             <div class="bus-dist"><i class="fas fa-chevron-right"></i></div>
                         `;
-                        div.onclick = () => { afficherTrajet(bus); map.setView([bus.current_lat, bus.current_lon], 16); m.openPopup(); };
+                        div.onclick = () => { 
+                            afficherTrajet(bus); 
+                            map.setView([bus.current_lat, bus.current_lon], 16); 
+                            m.openPopup(); 
+                        };
                         container.appendChild(div);
                     });
                 } else {

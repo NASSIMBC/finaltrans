@@ -12,8 +12,8 @@
     <style>
         :root {
             --bg-dark: #0f172a;
-            --card-bg: rgba(30, 41, 59, 0.95); /* Fond semi-transparent */
-            --accent: #d4fb79; /* Jaune Néon */
+            --card-bg: rgba(30, 41, 59, 0.95);
+            --accent: #d4fb79;
             --text-main: #ffffff;
             --text-muted: #94a3b8;
             --border: rgba(255,255,255,0.1);
@@ -24,45 +24,15 @@
         #map { height: 100vh; width: 100%; z-index: 1; }
         .leaflet-control-attribution { display: none; }
 
-        /* HEADER FLOTTANT (Haut) */
-        .top-bar {
-            position: absolute; top: 20px; left: 20px; right: 20px;
-            display: flex; justify-content: space-between; align-items: center;
-            z-index: 1000; pointer-events: none;
-        }
-
-        .profile-chip {
-            pointer-events: auto;
-            background: var(--card-bg); backdrop-filter: blur(10px);
-            padding: 8px 16px 8px 8px; border-radius: 50px;
-            display: flex; align-items: center; gap: 10px;
-            border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        }
+        .top-bar { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; align-items: center; z-index: 1000; pointer-events: none; }
+        .profile-chip { pointer-events: auto; background: var(--card-bg); backdrop-filter: blur(10px); padding: 8px 16px 8px 8px; border-radius: 50px; display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
         .profile-img { width: 35px; height: 35px; border-radius: 50%; border: 2px solid var(--accent); }
         .profile-text { font-size: 0.9rem; color: white; font-weight: 700; }
-        
-        .search-btn-top {
-            pointer-events: auto; width: 45px; height: 45px; background: var(--card-bg);
-            border-radius: 50%; display: flex; justify-content: center; align-items: center;
-            border: 1px solid var(--border); cursor: pointer; color: white;
-            backdrop-filter: blur(10px);
-        }
+        .search-btn-top { pointer-events: auto; width: 45px; height: 45px; background: var(--card-bg); border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 1px solid var(--border); cursor: pointer; color: white; backdrop-filter: blur(10px); }
 
-        /* OVERLAY RECHERCHE (Plein écran) */
-        .search-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(15, 23, 42, 0.95); z-index: 2000;
-            transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex; flex-direction: column; padding: 20px; box-sizing: border-box;
-        }
+        .search-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.95); z-index: 2000; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; }
         .search-overlay.active { transform: translateY(0); }
-
-        .search-card {
-            background: var(--card-bg); padding: 25px; border-radius: 25px;
-            border: 1px solid var(--border); width: 100%; max-width: 400px; margin: 50px auto 0 auto;
-            box-sizing: border-box;
-        }
-        
+        .search-card { background: var(--card-bg); padding: 25px; border-radius: 25px; border: 1px solid var(--border); width: 100%; max-width: 400px; margin: 50px auto 0 auto; box-sizing: border-box; }
         .card-title { font-size: 1.4rem; font-weight: 800; margin-bottom: 20px; color: white; display: flex; justify-content: space-between; align-items: center; }
         .btn-close { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
 
@@ -73,45 +43,30 @@
         .dot-end { width: 12px; height: 12px; border: 2px solid #ef4444; border-radius: 50%; }
         
         .inputs-col { flex: 1; display: flex; flex-direction: column; gap: 15px; }
-        .input-field {
-            width: 100%; padding: 16px; border-radius: 12px; border: none;
-            background: #0f172a; color: white; font-weight: 600; border: 1px solid var(--border);
-            font-family: 'Urbanist', sans-serif; outline: none; box-sizing: border-box;
+        .input-field { width: 100%; padding: 16px; border-radius: 12px; border: none; background: #0f172a; color: white; font-weight: 600; border: 1px solid var(--border); font-family: 'Urbanist', sans-serif; outline: none; box-sizing: border-box; }
+        
+        /* --- NOUVEAU : STYLE BOUTON VISIBILITÉ --- */
+        .visibility-toggle {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-top: 20px; background: rgba(255,255,255,0.05);
+            padding: 12px 15px; border-radius: 12px; cursor: pointer; border: 1px solid transparent;
+            transition: 0.3s;
         }
-        .btn-main {
-            width: 100%; padding: 16px; border-radius: 12px; border: none;
-            background: var(--accent); color: black; font-size: 1rem; font-weight: 800;
-            cursor: pointer; margin-top: 25px;
-        }
+        .visibility-toggle.active { background: rgba(212, 251, 121, 0.1); border-color: var(--accent); }
+        .vis-label { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; font-weight: 600; color: #cbd5e1; }
+        .vis-icon { width: 24px; height: 24px; border-radius: 50%; display: flex; justify-content: center; align-items: center; transition: 0.3s; }
+        .visibility-toggle.active .vis-icon { color: var(--accent); }
+        
+        .btn-main { width: 100%; padding: 16px; border-radius: 12px; border: none; background: var(--accent); color: black; font-size: 1rem; font-weight: 800; cursor: pointer; margin-top: 25px; }
 
-        /* PANNEAU RESULTATS (TIROIR BAS) */
-        .bottom-sheet {
-            position: absolute; bottom: 20px; left: 15px; right: 15px;
-            background: var(--card-bg); backdrop-filter: blur(20px);
-            border-radius: 24px; padding: 0 20px 20px 20px; z-index: 1500; border: 1px solid var(--border);
-            transform: translateY(150%); transition: transform 0.4s cubic-bezier(0.33, 1, 0.68, 1);
-            max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-        }
+        .bottom-sheet { position: absolute; bottom: 20px; left: 15px; right: 15px; background: var(--card-bg); backdrop-filter: blur(20px); border-radius: 24px; padding: 0 20px 20px 20px; z-index: 1500; border: 1px solid var(--border); transform: translateY(150%); transition: transform 0.4s cubic-bezier(0.33, 1, 0.68, 1); max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
         .bottom-sheet.active { transform: translateY(0); }
-
-        .sheet-header {
-            position: sticky; top: 0; background: inherit; z-index: 10;
-            padding-top: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
-            margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;
-        }
+        .sheet-header { position: sticky; top: 0; background: inherit; z-index: 10; padding-top: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
         .drag-handle { width: 40px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 10px; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); }
         .sheet-title { font-weight: 800; color: var(--text-muted); font-size: 0.8rem; letter-spacing: 1px; }
-        
-        /* Croix de fermeture Résultats */
         .btn-close-sheet { background: rgba(255,255,255,0.1); border: none; color: white; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; justify-content: center; align-items: center; }
 
-        /* LISTE BUS */
-        .bus-item {
-            display: flex; align-items: center; padding: 15px;
-            background: rgba(255,255,255,0.03); border-radius: 16px;
-            margin-bottom: 10px; cursor: pointer; border: 1px solid transparent; transition: 0.2s;
-        }
+        .bus-item { display: flex; align-items: center; padding: 15px; background: rgba(255,255,255,0.03); border-radius: 16px; margin-bottom: 10px; cursor: pointer; border: 1px solid transparent; transition: 0.2s; }
         .bus-item:active { background: rgba(212, 251, 121, 0.1); border-color: var(--accent); }
         .bus-info { flex: 1; margin-left: 15px; }
         .bus-name { color: white; font-weight: 800; font-size: 1rem; }
@@ -144,13 +99,19 @@
             </div>
             
             <div class="route-visual">
-                <div class="dots-col">
-                    <div class="dot-start"></div><div class="line"></div><div class="dot-end"></div>
-                </div>
+                <div class="dots-col"><div class="dot-start"></div><div class="line"></div><div class="dot-end"></div></div>
                 <div class="inputs-col">
                     <input type="text" class="input-field" id="txtDepart" placeholder="D'où partez-vous ? (ex: Tizi)">
                     <input type="text" class="input-field" id="txtArrivee" placeholder="Où allez-vous ? (ex: Alger)">
                 </div>
+            </div>
+
+            <div class="visibility-toggle active" id="btnVisibilite" onclick="toggleVisibility()">
+                <div class="vis-label">
+                    <div class="vis-icon"><i class="fas fa-eye" id="visIcon"></i></div>
+                    <span id="visText">Visible par le chauffeur</span>
+                </div>
+                <i class="fas fa-toggle-on" id="visToggleIcon" style="font-size:1.5rem; color:var(--accent);"></i>
             </div>
 
             <button class="btn-main" onclick="lancerRecherche()">
@@ -163,9 +124,7 @@
         <div class="sheet-header">
             <div class="drag-handle"></div>
             <div class="sheet-title">RÉSULTATS</div>
-            <button class="btn-close-sheet" onclick="fermerResultats()">
-                <i class="fas fa-times"></i>
-            </button>
+            <button class="btn-close-sheet" onclick="fermerResultats()"><i class="fas fa-times"></i></button>
         </div>
         <div id="busList"></div>
     </div>
@@ -175,11 +134,13 @@
         const SERVER_URL = "https://finaltrans.onrender.com"; 
         let rechercheActive = false;
         let currentRouteLayer = null; 
+        
+        // --- ETAT VISIBILITÉ (Par défaut : Oui) ---
+        let isVisibleToDriver = true;
 
         const session = JSON.parse(localStorage.getItem('user_session'));
         if(session && session.user.nom_complet) document.getElementById('txtName').innerText = session.user.nom_complet.split(' ')[0];
 
-        // CARTE LEAFLET (GRATUITE - MODE SOMBRE)
         const map = L.map('map', { zoomControl: false }).setView([36.72, 4.05], 13);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
@@ -189,7 +150,6 @@
         let userLat, userLon, userMarker;
         let busMarkers = {};
 
-        // GPS USER
         if (navigator.geolocation) {
             navigator.geolocation.watchPosition(pos => {
                 userLat = pos.coords.latitude;
@@ -205,14 +165,31 @@
             });
         }
 
-        // --- FONCTIONS UI ---
-        function toggleSearch() {
-            document.getElementById('searchOverlay').classList.toggle('active');
+        // --- GESTION VISIBILITE ---
+        function toggleVisibility() {
+            isVisibleToDriver = !isVisibleToDriver;
+            const btn = document.getElementById('btnVisibilite');
+            const icon = document.getElementById('visIcon');
+            const toggle = document.getElementById('visToggleIcon');
+            const text = document.getElementById('visText');
+
+            if(isVisibleToDriver) {
+                btn.classList.add('active');
+                icon.className = "fas fa-eye";
+                toggle.className = "fas fa-toggle-on";
+                toggle.style.color = "var(--accent)";
+                text.innerText = "Visible par le chauffeur";
+            } else {
+                btn.classList.remove('active');
+                icon.className = "fas fa-eye-slash";
+                toggle.className = "fas fa-toggle-off";
+                toggle.style.color = "#64748b";
+                text.innerText = "Invisible pour le chauffeur";
+            }
         }
 
-        function fermerResultats() {
-            document.getElementById('resultsSheet').classList.remove('active');
-        }
+        function toggleSearch() { document.getElementById('searchOverlay').classList.toggle('active'); }
+        function fermerResultats() { document.getElementById('resultsSheet').classList.remove('active'); }
 
         function lancerRecherche() {
             const dep = document.getElementById('txtDepart').value;
@@ -226,7 +203,6 @@
             rechercheActive = true;
             document.getElementById('searchOverlay').classList.remove('active');
             document.getElementById('resultsSheet').classList.add('active');
-            
             document.getElementById('busList').innerHTML = '<div style="text-align:center; padding:20px; color:#64748b;">Recherche...</div>';
             
             fetchBus();
@@ -259,7 +235,13 @@
             try {
                 const res = await fetch(SERVER_URL + '/api/trouver-bus', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ user_lat: userLat, user_lon: userLon, depart_text: dep, arrivee_text: arr })
+                    body: JSON.stringify({ 
+                        user_lat: userLat, 
+                        user_lon: userLon, 
+                        depart_text: dep, 
+                        arrivee_text: arr,
+                        visible: isVisibleToDriver // <--- ON ENVOIE L'ÉTAT AU SERVEUR
+                    })
                 });
                 const data = await res.json();
                 

@@ -1,5 +1,6 @@
 import os
 import math
+import datetime # <--- AJOUTÉ POUR GERER LE TEMPS DES DEMANDES
 from flask import Flask, request, jsonify, send_from_directory
 from supabase import create_client, Client
 from flask_cors import CORS
@@ -10,7 +11,7 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-# Récupération des clés (avec nettoyage au cas où il y a des guillemets en trop)
+# Récupération des clés
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 if SUPABASE_URL: SUPABASE_URL = SUPABASE_URL.strip().strip("'").strip('"')
@@ -23,7 +24,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 else:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# --- 1. LE CERVEAU GÉOGRAPHIQUE (SECOURS) ---
+# --- 1. LE CERVEAU GÉOGRAPHIQUE ---
 CITIES_DB = {
     "tizi ouzou": {"lat": 36.7118, "lon": 4.0505},
     "tizi": {"lat": 36.7118, "lon": 4.0505},
@@ -126,7 +127,7 @@ def login():
         return jsonify({"error": "Rôle inconnu"}), 400
     except: return jsonify({"error": "Email ou mot de passe incorrect"}), 401
 
-# --- API 3 : MISE A JOUR POSITION ---
+# --- API 3 : MISE A JOUR POSITION (AMÉLIORÉE POUR VOYAGEURS) ---
 @app.route('/api/update-position', methods=['POST'])
 def update_position():
     data = request.json
@@ -172,8 +173,44 @@ def update_position():
             'direction_actuelle': destination_actuelle,
             'last_update': 'now()'
         }).execute()
+
+        # ======================================================================
+        # 🆕 NOUVEAU : ENVOYER LES VOYAGEURS QUI ATTENDENT AU CHAUFFEUR
+        # ======================================================================
+        voyageurs_visibles = []
+        try:
+            # On cherche les demandes récentes (15 dernières minutes)
+            fifteen_mins_ago = (datetime.datetime.utcnow() - datetime.timedelta(minutes=15)).isoformat()
+            
+            requests = supabase.table('passenger_requests').select('*').gt('created_at', fifteen_mins_ago).execute().data
+            
+            if requests:
+                for req in requests:
+                    r_dep = (req.get('depart_text') or "").lower()
+                    r_arr = (req.get('arrivee_text') or "").lower()
+                    d_dep = v_dep_nom.lower()
+                    d_arr = v_arr_nom.lower()
+
+                    # Est-ce que ce voyageur cherche ma ligne ? (Aller ou Retour)
+                    is_match = False
+                    if (r_dep in d_dep and r_arr in d_arr) or (r_dep in d_arr and r_arr in d_dep):
+                        is_match = True
+                    
+                    if is_match and req.get('user_lat'):
+                        voyageurs_visibles.append({
+                            'lat': req['user_lat'],
+                            'lon': req['user_lon']
+                        })
+        except Exception as e:
+            print(f"Erreur recup voyageurs: {e}")
+        # ======================================================================
         
-        return jsonify({"status": "updated", "direction": destination_actuelle})
+        return jsonify({
+            "status": "updated", 
+            "direction": destination_actuelle,
+            "voyageurs": voyageurs_visibles # Le chauffeur reçoit la liste ici
+        })
+        
     except Exception as e: return jsonify({"error": str(e)}), 500
 
 # Ajoutez ceci avec les autres routes statiques
@@ -185,7 +222,7 @@ def serve_manifest():
 def serve_sw():
     return send_from_directory('.', 'sw.js')
 
-# --- API 4 : TROUVER BUS (INTELLIGENTE) ---
+# --- API 4 : TROUVER BUS (INTELLIGENTE & SAUVEGARDE) ---
 @app.route('/api/trouver-bus', methods=['POST'])
 def api_trouver_bus():
     data = request.json
@@ -205,6 +242,23 @@ def api_trouver_bus():
 
     print(f"🔍 RECHERCHE INTELLIGENTE: '{txt_dep}' -> '{txt_arr}'")
 
+    # ==============================================================================
+    # 🆕 AJOUT : ON ENREGISTRE LE VOYAGEUR POUR LES CHAUFFEURS
+    # ==============================================================================
+    if recherche_active and user_lat and user_lon:
+        try:
+            # On insère la position et la recherche du voyageur dans la base
+            # Cela permet au chauffeur de voir des icônes sur sa carte
+            supabase.table('passenger_requests').insert({
+                'user_lat': user_lat,
+                'user_lon': user_lon,
+                'depart_text': txt_dep,
+                'arrivee_text': txt_arr
+            }).execute()
+        except Exception as e:
+            print(f"⚠️ Erreur enregistrement voyageur: {e}")
+    # ==============================================================================
+
     try:
         active_trips = supabase.table('active_trips').select('*').execute().data
         bus_proches = []
@@ -217,7 +271,7 @@ def api_trouver_bus():
                 driver = driver_req.data[0]
             except: continue
 
-            # Villes de la ligne du chauffeur (v1 = Départ Inscrit, v2 = Arrivée Inscrite)
+            # Villes de la ligne du chauffeur (v1 = Départ Inscrit, v2 = Arrivée Inscrit)
             v1 = clean_text(driver.get('ville_depart', ''))
             v2 = clean_text(driver.get('ville_arrivee', ''))
             
@@ -278,25 +332,38 @@ def api_trouver_bus():
                 dist_bus_to_dest = haversine(trip['current_lat'], trip['current_lon'], coord_destination_user['lat'], coord_destination_user['lon'])
 
                 # SI (Distance Bus->Dest) < (Distance Moi->Dest) ALORS le bus est plus proche de l'arrivée que moi.
-                # Donc il est devant moi. Donc il ne peut pas me prendre.
-                # On ajoute une marge de 2km pour les erreurs GPS.
                 if dist_bus_to_dest < (dist_user_to_dest - 2.0):
                     # Bus ignoré (Déjà passé)
                     continue 
 
-            # --- 4. PRÉPARATION AFFICHAGE ---
+            # --- 4. PRÉPARATION AFFICHAGE (CORRIGÉE : UTILISE LES POINTS DU CHAUFFEUR) ---
             
-            # On définit le Terminus Officiel pour le trait jaune sur la carte
+            # A. On récupère les coords EXACTES du chauffeur s'il les a définies
+            real_dep_coord = None
+            if driver.get('dep_lat') and driver.get('dep_lon'):
+                real_dep_coord = {'lat': driver['dep_lat'], 'lon': driver['dep_lon']}
+            else:
+                real_dep_coord = CITIES_DB.get(v1) # Fallback
+
+            real_arr_coord = None
+            if driver.get('arr_lat') and driver.get('arr_lon'):
+                real_arr_coord = {'lat': driver['arr_lat'], 'lon': driver['arr_lon']}
+            else:
+                real_arr_coord = CITIES_DB.get(v2) # Fallback
+
+            # B. On définit le sens de la ligne pour le tracé jaune
             coord_dep_ligne = None
             coord_arr_ligne = None
             
-            # On mappe intelligemment pour que le trait aille dans le bon sens
+            # On mappe intelligemment selon la direction
             if direction_reelle in v1:
-                coord_arr_ligne = CITIES_DB.get(v1)
-                coord_dep_ligne = CITIES_DB.get(v2)
+                # Le bus va vers le point de départ (Retour)
+                coord_arr_ligne = real_dep_coord # Terminus = Départ Chauffeur
+                coord_dep_ligne = real_arr_coord # Origine = Arrivée Chauffeur
             else:
-                coord_arr_ligne = CITIES_DB.get(v2)
-                coord_dep_ligne = CITIES_DB.get(v1)
+                # Le bus va vers le point d'arrivée (Aller)
+                coord_arr_ligne = real_arr_coord # Terminus = Arrivée Chauffeur
+                coord_dep_ligne = real_dep_coord # Origine = Départ Chauffeur
 
             # Calcul Distance Voyageur-Bus
             dist_user_bus = 0
@@ -354,6 +421,3 @@ def update_driver_profile():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
-
-
-

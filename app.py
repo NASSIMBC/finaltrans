@@ -1,6 +1,6 @@
 import os
 import math
-import datetime # <--- AJOUTÉ POUR GERER LE TEMPS DES DEMANDES
+import datetime 
 from flask import Flask, request, jsonify, send_from_directory
 from supabase import create_client, Client
 from flask_cors import CORS
@@ -215,6 +215,22 @@ def update_position():
         
     except Exception as e: return jsonify({"error": str(e)}), 500
 
+# ==========================================================================
+# 🛑 NOUVEAU : ROUTE POUR ARRETER LE SERVICE (Supprime le bus de la carte)
+# ==========================================================================
+@app.route('/api/stop-driving', methods=['POST'])
+def stop_driving():
+    data = request.json
+    driver_id = data.get('id')
+    
+    try:
+        # On supprime le trajet actif de ce chauffeur
+        supabase.table('active_trips').delete().eq('chauffeur_id', driver_id).execute()
+        return jsonify({'status': 'success', 'message': 'Vous êtes hors ligne'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'error': str(e)}), 500
+
+
 # Ajoutez ceci avec les autres routes statiques
 @app.route('/manifest.json')
 def serve_manifest():
@@ -243,8 +259,6 @@ def api_trouver_bus():
     has_arr = len(txt_arr) > 0
     recherche_active = (has_dep or has_arr)
 
-    print(f"🔍 RECHERCHE INTELLIGENTE: '{txt_dep}' -> '{txt_arr}' (Visible: {is_visible})")
-
     # ==============================================================================
     # 🆕 AJOUT : ON ENREGISTRE LE VOYAGEUR POUR LES CHAUFFEURS SI VISIBLE
     # ==============================================================================
@@ -263,7 +277,12 @@ def api_trouver_bus():
     # ==============================================================================
 
     try:
-        active_trips = supabase.table('active_trips').select('*').execute().data
+        # 🟢 MODIFICATION IMPORTANTE : FILTRE DE TEMPS (5 MINUTES MAX)
+        # Si un bus n'a pas donné signe de vie depuis 5 min, on ne le montre pas
+        five_min_ago = (datetime.datetime.utcnow() - datetime.timedelta(minutes=5)).isoformat()
+
+        active_trips = supabase.table('active_trips').select('*').gt('last_update', five_min_ago).execute().data
+        
         bus_proches = []
 
         for trip in active_trips:
@@ -341,7 +360,7 @@ def api_trouver_bus():
                     # Bus ignoré (Déjà passé)
                     continue 
 
-            # --- 4. PRÉPARATION AFFICHAGE ---
+            # --- 4. PREPARATION AFFICHAGE ---
             
             # A. On récupère les coords EXACTES du chauffeur s'il les a définies
             real_dep_coord = None
@@ -371,8 +390,19 @@ def api_trouver_bus():
 
             # Calcul Distance Voyageur-Bus
             dist_user_bus = 0
+            eta_min = 0 # <--- NOUVEAU
+            
             if user_lat and trip['current_lat']:
                 dist_user_bus = haversine(user_lat, user_lon, trip['current_lat'], trip['current_lon'])
+                
+                # --- CALCUL ETA (TEMPS ARRIVÉE) ---
+                # On estime la vitesse moyenne d'un bus à Tizi à 25 km/h
+                vitesse_moyenne = 25.0 
+                temps_heures = dist_user_bus / vitesse_moyenne
+                eta_min = int(temps_heures * 60) # Conversion en minutes
+                
+                # Si c'est moins de 1 min, on met 1 min minimum
+                if eta_min < 1: eta_min = 1
 
             bus_proches.append({
                 'bus_id': trip['chauffeur_id'],
@@ -382,6 +412,7 @@ def api_trouver_bus():
                 'current_lat': trip['current_lat'],
                 'current_lon': trip['current_lon'],
                 'distance_km': round(dist_user_bus, 1),
+                'eta': eta_min, # <--- ON ENVOIE L'INFO AU FRONTEND
                 'direction': direction_reelle,
                 'terminus_officiel': coord_arr_ligne, 
                 'ligne_start': coord_dep_ligne,

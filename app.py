@@ -127,7 +127,7 @@ def login():
         return jsonify({"error": "Rôle inconnu"}), 400
     except: return jsonify({"error": "Email ou mot de passe incorrect"}), 401
 
-# --- API 3 : MISE A JOUR POSITION (CORRIGÉE DIRECTION VOYAGEURS) ---
+# --- API 3 : MISE A JOUR POSITION (AMÉLIORÉE POUR VOYAGEURS) ---
 @app.route('/api/update-position', methods=['POST'])
 def update_position():
     data = request.json
@@ -155,7 +155,7 @@ def update_position():
 
         destination_actuelle = "Inconnue"
 
-        # 3. CALCUL AUTOMATIQUE DIRECTION
+        # 3. CALCUL AUTOMATIQUE DIRECTION (CRUCIAL POUR LE TRACÉ)
         if coord_dep and coord_arr:
             dist_to_dep = haversine(lat, lon, coord_dep['lat'], coord_dep['lon'])
             dist_to_arr = haversine(lat, lon, coord_arr['lat'], coord_arr['lon'])
@@ -175,7 +175,7 @@ def update_position():
         }).execute()
 
         # ======================================================================
-        # 🆕 CORRECTION : FILTRER VOYAGEURS PAR DIRECTION
+        # 🆕 NOUVEAU : ENVOYER LES VOYAGEURS QUI ATTENDENT AU CHAUFFEUR
         # ======================================================================
         voyageurs_visibles = []
         try:
@@ -210,7 +210,7 @@ def update_position():
         return jsonify({
             "status": "updated", 
             "direction": destination_actuelle,
-            "voyageurs": voyageurs_visibles # Le chauffeur reçoit UNIQUEMENT les voyageurs de sa direction
+            "voyageurs": voyageurs_visibles # Le chauffeur reçoit la liste ici
         })
         
     except Exception as e: return jsonify({"error": str(e)}), 500
@@ -224,13 +224,13 @@ def serve_manifest():
 def serve_sw():
     return send_from_directory('.', 'sw.js')
 
-# --- API 4 : TROUVER BUS (INTELLIGENTE & SAUVEGARDE CONDITIONNELLE) ---
+# --- API 4 : TROUVER BUS (INTELLIGENTE & SAUVEGARDE) ---
 @app.route('/api/trouver-bus', methods=['POST'])
 def api_trouver_bus():
     data = request.json
     user_lat = data.get('user_lat')
     user_lon = data.get('user_lon')
-    is_visible = data.get('visible', True) # <--- RÉCUPÉRATION DU BOUTON (Par défaut True)
+    is_visible = data.get('visible', True) # Gestion de la visibilité
 
     def clean_text(t):
         if not t: return ""
@@ -246,11 +246,12 @@ def api_trouver_bus():
     print(f"🔍 RECHERCHE INTELLIGENTE: '{txt_dep}' -> '{txt_arr}' (Visible: {is_visible})")
 
     # ==============================================================================
-    # 🆕 MODIFIÉ : ON ENREGISTRE UNIQUEMENT SI LE CLIENT VEUT ETRE VISIBLE
+    # 🆕 AJOUT : ON ENREGISTRE LE VOYAGEUR POUR LES CHAUFFEURS SI VISIBLE
     # ==============================================================================
     if is_visible and recherche_active and user_lat and user_lon:
         try:
             # On insère la position et la recherche du voyageur dans la base
+            # Cela permet au chauffeur de voir des icônes sur sa carte
             supabase.table('passenger_requests').insert({
                 'user_lat': user_lat,
                 'user_lon': user_lon,
@@ -340,7 +341,7 @@ def api_trouver_bus():
                     # Bus ignoré (Déjà passé)
                     continue 
 
-            # --- 4. PRÉPARATION AFFICHAGE (CORRIGÉE : UTILISE LES POINTS DU CHAUFFEUR) ---
+            # --- 4. PRÉPARATION AFFICHAGE ---
             
             # A. On récupère les coords EXACTES du chauffeur s'il les a définies
             real_dep_coord = None
@@ -359,7 +360,6 @@ def api_trouver_bus():
             coord_dep_ligne = None
             coord_arr_ligne = None
             
-            # On mappe intelligemment selon la direction
             if direction_reelle in v1:
                 # Le bus va vers le point de départ (Retour)
                 coord_arr_ligne = real_dep_coord # Terminus = Départ Chauffeur

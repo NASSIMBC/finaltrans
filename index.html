@@ -42,7 +42,7 @@
         .line { width: 2px; height: 50px; background: var(--text-muted); opacity: 0.3; margin: 5px 0; }
         .dot-end { width: 12px; height: 12px; border: 2px solid #ef4444; border-radius: 50%; }
         
-        .inputs-col { flex: 1; display: flex; flex-direction: column; gap: 15px; position: relative; } /* Added relative for suggestions */
+        .inputs-col { flex: 1; display: flex; flex-direction: column; gap: 15px; position: relative; } 
         .input-field { width: 100%; padding: 16px; border-radius: 12px; border: none; background: #0f172a; color: white; font-weight: 600; border: 1px solid var(--border); font-family: 'Urbanist', sans-serif; outline: none; box-sizing: border-box; }
         
         /* --- STYLE DES SUGGESTIONS --- */
@@ -50,7 +50,7 @@
             position: absolute; left: 0; right: 0; z-index: 100;
             background: #1e293b; border: 1px solid var(--border);
             border-radius: 12px; max-height: 200px; overflow-y: auto;
-            margin-top: 5px; display: none; /* Caché par défaut */
+            margin-top: 5px; display: none;
             box-shadow: 0 10px 20px rgba(0,0,0,0.5);
         }
         .suggestions-list.active { display: block; }
@@ -203,10 +203,8 @@
                     return;
                 }
 
-                // Délai pour éviter trop d'appels API
                 timeout = setTimeout(async () => {
                     try {
-                        // API OpenStreetMap restreinte à l'Algérie (dz)
                         const url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&countrycodes=dz&addressdetails=1&limit=5`;
                         const res = await fetch(url);
                         const data = await res.json();
@@ -215,7 +213,6 @@
                         if(data.length > 0) {
                             list.classList.add('active');
                             data.forEach(item => {
-                                // On essaie de trouver le nom propre (Ville, Village, Commune)
                                 const name = item.name;
                                 const details = item.address.state || item.address.county || "Algérie";
                                 
@@ -223,7 +220,7 @@
                                 div.className = 'suggestion-item';
                                 div.innerHTML = `<strong>${name}</strong> <span style="font-size:0.8rem; color:#64748b;">(${details})</span>`;
                                 div.onclick = () => {
-                                    input.value = name; // On met juste le nom
+                                    input.value = name; 
                                     list.classList.remove('active');
                                 };
                                 list.appendChild(div);
@@ -235,7 +232,6 @@
                 }, 300);
             });
 
-            // Cacher la liste si on clique ailleurs
             document.addEventListener('click', (e) => {
                 if(e.target !== input && e.target !== list) {
                     list.classList.remove('active');
@@ -243,10 +239,8 @@
             });
         }
 
-        // Initialisation de l'autocomplétion sur les 2 champs
         setupAutocomplete('txtDepart', 'listDepart');
         setupAutocomplete('txtArrivee', 'listArrivee');
-
 
         // --- GESTION VISIBILITE ---
         function toggleVisibility() {
@@ -339,8 +333,13 @@
                 if(data.bus_proches && data.bus_proches.length > 0) {
                     data.bus_proches.forEach(bus => {
                         const m = L.marker([bus.current_lat, bus.current_lon], {icon: iconBus}).addTo(map);
+                        
+                        // --- AFFICHAGE ETA DANS LE POPUP ---
                         m.bindPopup(`
-                            <div style="text-align:center; color:black;">
+                            <div style="text-align:center; color:black; font-family:'Urbanist',sans-serif;">
+                                <div style="background:#d4fb79; color:black; font-weight:800; padding:5px; border-radius:8px; margin-bottom:5px;">
+                                    ~ ${bus.eta || '?'} min
+                                </div>
                                 <strong>${bus.chauffeur}</strong><br>
                                 <span style="font-size:0.8rem;">${bus.modele}</span><br>
                                 <span style="background:#facc15; padding:2px; font-weight:bold;">${bus.matricule}</span>
@@ -351,14 +350,18 @@
 
                         const div = document.createElement('div');
                         div.className = 'bus-item';
+                        
+                        // --- AFFICHAGE ETA DANS LA LISTE ---
                         div.innerHTML = `
                             <div style="background:#333; width:40px; height:40px; border-radius:10px; display:flex; justify-content:center; align-items:center;">
                                 <i class="fas fa-bus" style="color:white;"></i>
                             </div>
                             <div class="bus-info">
                                 <div class="bus-name">${bus.chauffeur}</div>
-                                <div class="bus-meta">${bus.modele} • <span class="bus-matricule">${bus.matricule}</span></div>
-                                <div class="bus-sub">${bus.distance_km} km</div>
+                                <div class="bus-meta">${bus.modele}</div>
+                                <div class="bus-sub" style="color:#d4fb79; font-weight:bold;">
+                                    <i class="fas fa-clock"></i> ${bus.eta || '?'} min <span style="color:#94a3b8; font-weight:normal;">(${bus.distance_km} km)</span>
+                                </div>
                             </div>
                             <div class="bus-dist"><i class="fas fa-chevron-right"></i></div>
                         `;
@@ -375,10 +378,9 @@
             } catch(e) { console.error(e); }
         }
 
-// --- GESTION DES ARRÊTS DE BUS (OpenStreetMap) ---
-    let busStopsLayer = L.layerGroup().addTo(map); // Calque pour les arrêts
+    // --- GESTION DES ARRÊTS DE BUS (OpenStreetMap) ---
+    let busStopsLayer = L.layerGroup().addTo(map); 
 
-    // Icône pour les arrêts physiques (différent des bus en mouvement)
     const iconStation = L.divIcon({
         className: 'station-icon',
         html: `<div style="background:white; border:2px solid #333; width:12px; height:12px; border-radius:50%;"></div>`,
@@ -386,22 +388,18 @@
         iconAnchor: [6, 6]
     });
 
-    // Fonction pour récupérer les arrêts via Overpass API
     async function chargerArretsOsm() {
         const bounds = map.getBounds();
-        // On ne charge pas si on est trop dézoomé (pour éviter de faire ramer)
         if(map.getZoom() < 14) {
             busStopsLayer.clearLayers();
             return;
         }
 
-        // Coordonnées de la zone visible
         const south = bounds.getSouth();
         const west = bounds.getWest();
         const north = bounds.getNorth();
         const east = bounds.getEast();
 
-        // Requête Overpass (Langage QL) pour chercher les "bus_stop"
         const query = `
             [out:json][timeout:25];
             (
@@ -417,30 +415,25 @@
             const res = await fetch(url);
             const data = await res.json();
 
-            busStopsLayer.clearLayers(); // Nettoyer les anciens pour pas doublonner
+            busStopsLayer.clearLayers();
 
             data.elements.forEach(element => {
                 const lat = element.lat;
                 const lon = element.lon;
-                const nom = element.tags.name || "Arrêt de bus"; // Nom ou défaut
+                const nom = element.tags.name || "Arrêt de bus"; 
 
                 L.marker([lat, lon], {icon: iconStation})
                  .bindPopup(`<b style="color:black">${nom}</b><br><span style="color:#666">Arrêt Public</span>`)
                  .addTo(busStopsLayer);
             });
-            
-            console.log(`${data.elements.length} arrêts chargés.`);
-
         } catch (e) {
             console.error("Erreur chargement OSM:", e);
         }
     }
 
-    // Charger les arrêts quand on bouge la carte
     map.on('moveend', chargerArretsOsm);
-        
-        setInterval(fetchBus, 5000);
+
+    setInterval(fetchBus, 5000);
     </script>
 </body>
 </html>
-

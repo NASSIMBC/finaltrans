@@ -127,7 +127,7 @@ def login():
         return jsonify({"error": "Rôle inconnu"}), 400
     except: return jsonify({"error": "Email ou mot de passe incorrect"}), 401
 
-# --- API 3 : MISE A JOUR POSITION (AMÉLIORÉE POUR VOYAGEURS) ---
+# --- API 3 : MISE A JOUR POSITION (AMÉLIORÉE AVEC AUTO-STOP) ---
 @app.route('/api/update-position', methods=['POST'])
 def update_position():
     data = request.json
@@ -144,7 +144,7 @@ def update_position():
         v_dep_nom = driver.get('ville_depart', '')
         v_arr_nom = driver.get('ville_arrivee', '')
 
-        # 2. On essaie d'avoir les coords exactes (depuis inscription) ou fallback DB
+        # 2. On essaie d'avoir les coords exactes
         coord_dep = None
         if driver.get('dep_lat'): coord_dep = {'lat': driver['dep_lat'], 'lon': driver['dep_lon']}
         else: coord_dep = CITIES_DB.get(v_dep_nom)
@@ -155,17 +155,28 @@ def update_position():
 
         destination_actuelle = "Inconnue"
 
-        # 3. CALCUL AUTOMATIQUE DIRECTION (CRUCIAL POUR LE TRACÉ)
+        # 3. CALCUL AUTOMATIQUE DIRECTION & AUTO-STOP
         if coord_dep and coord_arr:
             dist_to_dep = haversine(lat, lon, coord_dep['lat'], coord_dep['lon'])
             dist_to_arr = haversine(lat, lon, coord_arr['lat'], coord_arr['lon'])
+
+            # --- LOGIQUE D'ARRÊT AUTOMATIQUE ---
+            # Si le chauffeur est à moins de 300 mètres (0.3 km) du point d'arrivée
+            # On le supprime de la carte et on lui dit de s'arrêter.
+            if dist_to_arr < 0.3:
+                # Supprimer le trajet actif
+                supabase.table('active_trips').delete().eq('chauffeur_id', driver_id).execute()
+                return jsonify({
+                    "status": "finished", # Ce statut prévient le front-end
+                    "message": "Vous êtes arrivé au terminus. Mode hors ligne activé."
+                })
 
             if dist_to_dep < dist_to_arr:
                 destination_actuelle = v_arr_nom # S'éloigne du départ -> Va vers arrivée
             else:
                 destination_actuelle = v_dep_nom # Revient vers le départ
 
-        # 4. Sauvegarde
+        # 4. Sauvegarde (si pas arrivé)
         supabase.table('active_trips').upsert({
             'chauffeur_id': driver_id,
             'current_lat': lat,

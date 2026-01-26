@@ -375,7 +375,72 @@
             } catch(e) { console.error(e); }
         }
 
+// --- GESTION DES ARRÊTS DE BUS (OpenStreetMap) ---
+    let busStopsLayer = L.layerGroup().addTo(map); // Calque pour les arrêts
+
+    // Icône pour les arrêts physiques (différent des bus en mouvement)
+    const iconStation = L.divIcon({
+        className: 'station-icon',
+        html: `<div style="background:white; border:2px solid #333; width:12px; height:12px; border-radius:50%;"></div>`,
+        iconSize: [12, 12],
+        iconAnchor: [6, 6]
+    });
+
+    // Fonction pour récupérer les arrêts via Overpass API
+    async function chargerArretsOsm() {
+        const bounds = map.getBounds();
+        // On ne charge pas si on est trop dézoomé (pour éviter de faire ramer)
+        if(map.getZoom() < 14) {
+            busStopsLayer.clearLayers();
+            return;
+        }
+
+        // Coordonnées de la zone visible
+        const south = bounds.getSouth();
+        const west = bounds.getWest();
+        const north = bounds.getNorth();
+        const east = bounds.getEast();
+
+        // Requête Overpass (Langage QL) pour chercher les "bus_stop"
+        const query = `
+            [out:json][timeout:25];
+            (
+              node["highway"="bus_stop"](${south},${west},${north},${east});
+              node["public_transport"="platform"](${south},${west},${north},${east});
+            );
+            out body;
+        `;
+
+        const url = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`;
+
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+
+            busStopsLayer.clearLayers(); // Nettoyer les anciens pour pas doublonner
+
+            data.elements.forEach(element => {
+                const lat = element.lat;
+                const lon = element.lon;
+                const nom = element.tags.name || "Arrêt de bus"; // Nom ou défaut
+
+                L.marker([lat, lon], {icon: iconStation})
+                 .bindPopup(`<b style="color:black">${nom}</b><br><span style="color:#666">Arrêt Public</span>`)
+                 .addTo(busStopsLayer);
+            });
+            
+            console.log(`${data.elements.length} arrêts chargés.`);
+
+        } catch (e) {
+            console.error("Erreur chargement OSM:", e);
+        }
+    }
+
+    // Charger les arrêts quand on bouge la carte
+    map.on('moveend', chargerArretsOsm);
+        
         setInterval(fetchBus, 5000);
     </script>
 </body>
 </html>
+

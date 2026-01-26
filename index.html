@@ -11,21 +11,21 @@
 
     <style>
         :root {
-            /* THÈME SOMBRE (Défaut) */
             --bg-dark: #0f172a;
             --card-bg: rgba(30, 41, 59, 0.95);
-            --accent: #d4fb79;
+            --accent: #3b82f6; /* NOUVEAU : Bleu Électrique */
+            --accent-glow: rgba(59, 130, 246, 0.5);
             --text-main: #ffffff;
             --text-muted: #94a3b8;
             --border: rgba(255,255,255,0.1);
             --map-tiles: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
         }
 
-        /* THÈME CLAIR (Jour) */
         [data-theme="light"] {
             --bg-dark: #f1f5f9;
             --card-bg: rgba(255, 255, 255, 0.95);
-            --accent: #0f172a; /* Noir bleuté pour le contraste */
+            --accent: #2563eb;
+            --accent-glow: rgba(37, 99, 235, 0.3);
             --text-main: #0f172a;
             --text-muted: #64748b;
             --border: rgba(0,0,0,0.1);
@@ -37,12 +37,54 @@
         #map { height: 100vh; width: 100%; z-index: 1; }
         .leaflet-control-attribution { display: none; }
 
+        /* --- NOUVEAUX STYLES D'ICÔNES --- */
+        
+        /* Icône BUS Moderne */
+        .modern-bus-icon {
+            background: linear-gradient(135deg, var(--accent), #1d4ed8);
+            border-radius: 12px;
+            color: white;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 1.2rem;
+            box-shadow: 0 0 15px var(--accent-glow);
+            border: 2px solid white;
+            transition: transform 0.3s;
+        }
+        
+        /* Icône USER Moderne (avec pulsation) */
+        .modern-user-icon {
+            background: #10b981; /* Vert Menthe */
+            border-radius: 50%;
+            border: 3px solid white;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+        .pulse-ring {
+            border: 3px solid #10b981;
+            border-radius: 50%;
+            height: 40px; width: 40px;
+            position: absolute; left: -8px; top: -8px;
+            animation: pulsate 2s ease-out;
+            animation-iteration-count: infinite; 
+            opacity: 0.0;
+        }
+        @keyframes pulsate {
+            0% {transform: scale(0.1, 0.1); opacity: 0.0;}
+            50% {opacity: 1.0;}
+            100% {transform: scale(1.2, 1.2); opacity: 0.0;}
+        }
+
+        /* Icône ARRÊT DE BUS */
+        .station-icon {
+            background: white; border: 3px solid #64748b;
+            border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        }
+
+        /* --- UI EXISTANTE --- */
         .top-bar { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; align-items: center; z-index: 1000; pointer-events: none; }
         .profile-chip { pointer-events: auto; background: var(--card-bg); backdrop-filter: blur(10px); padding: 8px 16px 8px 8px; border-radius: 50px; display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
         .profile-img { width: 35px; height: 35px; border-radius: 50%; border: 2px solid var(--accent); }
         .profile-text { font-size: 0.9rem; color: var(--text-main); font-weight: 700; }
         
-        /* Boutons ronds (Recherche + Theme) */
         .top-right-group { display: flex; gap: 10px; pointer-events: auto; }
         .round-btn { width: 45px; height: 45px; background: var(--card-bg); border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 1px solid var(--border); cursor: pointer; color: var(--text-main); backdrop-filter: blur(10px); transition: 0.3s; }
         .round-btn:active { transform: scale(0.9); }
@@ -63,7 +105,6 @@
         .input-field { width: 100%; padding: 16px; border-radius: 12px; border: none; background: rgba(0,0,0,0.2); color: var(--text-main); font-weight: 600; border: 1px solid var(--border); font-family: 'Urbanist', sans-serif; outline: none; box-sizing: border-box; }
         [data-theme="light"] .input-field { background: #f8fafc; border: 1px solid #cbd5e1; }
 
-        /* SUGGESTIONS */
         .suggestions-list {
             position: absolute; left: 0; right: 0; z-index: 100;
             background: var(--card-bg); border: 1px solid var(--border);
@@ -73,10 +114,9 @@
         }
         .suggestions-list.active { display: block; }
         .suggestion-item { padding: 12px 15px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 0.9rem; color: var(--text-muted); transition: 0.2s; }
-        .suggestion-item:hover { background: rgba(212, 251, 121, 0.1); color: var(--accent); }
+        .suggestion-item:hover { background: rgba(59, 130, 246, 0.1); color: var(--accent); }
         .suggestion-item strong { color: var(--text-main); }
 
-        /* BOUTON VISIBILITÉ & FAVORIS */
         .options-row { display: flex; gap: 10px; margin-top: 20px; }
         .visibility-toggle {
             flex: 1; display: flex; align-items: center; justify-content: space-between;
@@ -84,7 +124,7 @@
             cursor: pointer; border: 1px solid transparent; transition: 0.3s;
         }
         [data-theme="light"] .visibility-toggle { background: #e2e8f0; }
-        .visibility-toggle.active { border-color: var(--accent); background: rgba(212, 251, 121, 0.1); }
+        .visibility-toggle.active { border-color: var(--accent); background: rgba(59, 130, 246, 0.1); }
         .vis-icon { color: var(--text-muted); }
         .visibility-toggle.active .vis-icon { color: var(--accent); }
         
@@ -95,9 +135,8 @@
         [data-theme="light"] .btn-fav-save { background: #e2e8f0; }
         .btn-fav-save.saved { color: #ef4444; border-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
 
-        .btn-main { width: 100%; padding: 16px; border-radius: 12px; border: none; background: var(--accent); color: var(--bg-dark); font-size: 1rem; font-weight: 800; cursor: pointer; margin-top: 25px; }
+        .btn-main { width: 100%; padding: 16px; border-radius: 12px; border: none; background: var(--accent); color: white; font-size: 1rem; font-weight: 800; cursor: pointer; margin-top: 25px; }
 
-        /* FAVORIS CHIPS */
         .favorites-bar { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; margin-top: 20px; }
         .fav-chip {
             background: var(--card-bg); border: 1px solid var(--border); padding: 8px 12px;
@@ -106,7 +145,6 @@
         }
         .fav-chip i { color: #ef4444; font-size: 0.7rem; }
 
-        /* RESULTATS */
         .bottom-sheet { position: absolute; bottom: 20px; left: 15px; right: 15px; background: var(--card-bg); backdrop-filter: blur(20px); border-radius: 24px; padding: 0 20px 20px 20px; z-index: 1500; border: 1px solid var(--border); transform: translateY(150%); transition: transform 0.4s cubic-bezier(0.33, 1, 0.68, 1); max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
         .bottom-sheet.active { transform: translateY(0); }
         .sheet-header { position: sticky; top: 0; background: inherit; z-index: 10; padding-top: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
@@ -121,11 +159,10 @@
         .bus-info { flex: 1; margin-left: 15px; }
         .bus-name { color: var(--text-main); font-weight: 800; font-size: 1rem; }
         .bus-meta { color: var(--accent); font-size: 0.85rem; font-weight: 600; }
-        .bus-matricule { background: rgba(212, 251, 121, 0.15); padding: 2px 6px; border-radius: 4px; color: var(--accent); font-size: 0.75rem; margin-left: 5px; }
+        .bus-matricule { background: rgba(59, 130, 246, 0.15); padding: 2px 6px; border-radius: 4px; color: var(--accent); font-size: 0.75rem; margin-left: 5px; }
         .bus-distance { color: var(--text-main); font-weight: 700; }
         
-        /* Bouton Partage */
-        .btn-share { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.1rem; margin-left: 10px; }
+        .btn-share { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.1rem; margin-left: 10px; z-index: 5; }
         .btn-share:hover { color: var(--accent); }
     </style>
 </head>
@@ -186,8 +223,7 @@
                 Trouver un chauffeur
             </button>
 
-            <div class="favorites-bar" id="favContainer">
-                </div>
+            <div class="favorites-bar" id="favContainer"></div>
         </div>
     </div>
 
@@ -209,26 +245,47 @@
         let userLat, userLon, userMarker;
         let userSpeed = 0;
         let busMarkers = {};
-        let map; // Déclaré globalement pour le switch de thème
+        let map; 
         let tileLayer;
 
         const session = JSON.parse(localStorage.getItem('user_session'));
         if(session && session.user.nom_complet) document.getElementById('txtName').innerText = session.user.nom_complet.split(' ')[0];
 
-        // --- 1. INITIALISATION CARTE ---
+        // --- INITIALISATION CARTE ---
         function initMap() {
             map = L.map('map', { zoomControl: false }).setView([36.72, 4.05], 13);
-            
-            // On récupère l'URL du thème actuel
             const themeUrl = getComputedStyle(document.documentElement).getPropertyValue('--map-tiles').trim().replace(/'/g, "");
             tileLayer = L.tileLayer(themeUrl).addTo(map);
         }
         initMap();
 
-        const iconBus = L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/5030/5030991.png', iconSize: [40, 40], iconAnchor: [20, 20] });
-        const iconUser = L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/5582/5582962.png', iconSize: [30, 30], iconAnchor: [15, 15] });
+        // --- NOUVELLES ICÔNES MODERNES ---
+        // Icône Bus CSS (Bleu/Dégradé)
+        const iconBus = L.divIcon({
+            className: 'modern-bus-icon',
+            html: '<i class="fas fa-bus"></i>',
+            iconSize: [36, 36],
+            iconAnchor: [18, 18],
+            popupAnchor: [0, -20]
+        });
 
-        // --- 2. GESTION THÈME (JOUR / NUIT) ---
+        // Icône User CSS (Vert/Pulse)
+        const iconUser = L.divIcon({
+            className: 'custom-div-icon',
+            html: `<div class="pulse-ring"></div><div class="modern-user-icon" style="width:24px; height:24px;"></div>`,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        });
+
+        // Icône Arrêt
+        const iconStation = L.divIcon({ 
+            className: 'station-icon', 
+            html: '', 
+            iconSize: [12, 12], 
+            iconAnchor: [6, 6] 
+        });
+
+        // --- GESTION THÈME (JOUR / NUIT) ---
         function toggleTheme() {
             const html = document.documentElement;
             const current = html.getAttribute('data-theme');
@@ -237,17 +294,15 @@
             if (current === 'dark') {
                 html.setAttribute('data-theme', 'light');
                 icon.className = "fas fa-sun";
-                // Changement de la carte en clair
                 tileLayer.setUrl('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
             } else {
                 html.setAttribute('data-theme', 'dark');
                 icon.className = "fas fa-moon";
-                // Changement de la carte en sombre
                 tileLayer.setUrl('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png');
             }
         }
 
-        // --- 3. GESTION FAVORIS ---
+        // --- GESTION FAVORIS ---
         function loadFavorites() {
             const favs = JSON.parse(localStorage.getItem('tizi_favs') || '[]');
             const container = document.getElementById('favContainer');
@@ -256,13 +311,12 @@
             favs.forEach((fav, index) => {
                 const chip = document.createElement('div');
                 chip.className = 'fav-chip';
-                chip.innerHTML = `<i class="fas fa-heart"></i> ${fav.arr}`; // Affiche destination
+                chip.innerHTML = `<i class="fas fa-heart"></i> ${fav.arr}`; 
                 chip.onclick = () => {
                     document.getElementById('txtDepart').value = fav.dep;
                     document.getElementById('txtArrivee').value = fav.arr;
                     lancerRecherche();
                 };
-                // Supprimer au clic droit (PC) ou appui long (Mobile - à améliorer plus tard)
                 chip.oncontextmenu = (e) => {
                     e.preventDefault();
                     if(confirm("Supprimer ce favori ?")) {
@@ -284,16 +338,15 @@
             favs.push({ dep, arr });
             localStorage.setItem('tizi_favs', JSON.stringify(favs));
             
-            // Animation visuelle
             const btn = document.querySelector('.btn-fav-save');
             btn.classList.add('saved');
             setTimeout(() => btn.classList.remove('saved'), 1000);
             
             loadFavorites();
         }
-        loadFavorites(); // Charger au démarrage
+        loadFavorites(); 
 
-        // --- 4. PARTAGE DE LIEN ---
+        // --- PARTAGE DE LIEN ---
         function shareBus(busId, chauffeurNom) {
             const url = `${window.location.origin}${window.location.pathname}?bus=${busId}`;
             if (navigator.share) {
@@ -301,19 +354,17 @@
                     title: 'Suivre ce bus - Tizi Transport',
                     text: `Suis le bus de ${chauffeurNom} en temps réel !`,
                     url: url
-                });
+                }).catch(console.error);
             } else {
                 navigator.clipboard.writeText(url);
-                alert("Lien copié !");
+                alert("Lien copié dans le presse-papier !");
             }
         }
 
-        // Vérifier si on a ouvert un lien de partage
+        // Vérification lien partagé
         const urlParams = new URLSearchParams(window.location.search);
         const sharedBusId = urlParams.get('bus');
         if(sharedBusId) {
-            // Si on ouvre un lien partagé, on lance la recherche vide pour voir les bus
-            // et on zoomera sur le bon bus dans fetchBus()
             rechercheActive = true;
             document.getElementById('searchOverlay').classList.remove('active');
         }
@@ -413,14 +464,14 @@
                 const res = await fetch(url);
                 const data = await res.json();
                 if (data.routes && data.routes.length > 0) {
-                    currentRouteLayer = L.geoJSON(data.routes[0].geometry, { style: { color: "#d4fb79", weight: 6, opacity: 0.9 } }).addTo(map);
+                    currentRouteLayer = L.geoJSON(data.routes[0].geometry, { style: { color: "#3b82f6", weight: 6, opacity: 0.8 } }).addTo(map);
                     map.fitBounds(currentRouteLayer.getBounds(), { padding: [50, 50] });
                 }
             } catch (e) { console.error("Erreur trajet:", e); }
         }
 
         async function fetchBus() {
-            if(!rechercheActive && !sharedBusId) return; // Si pas de recherche active et pas de lien partagé, on ne fait rien
+            if(!rechercheActive && !sharedBusId) return; 
             
             const container = document.getElementById('busList');
             const dep = document.getElementById('txtDepart').value;
@@ -446,7 +497,7 @@
                         const m = L.marker([bus.current_lat, bus.current_lon], {icon: iconBus}).addTo(map);
                         m.bindPopup(`
                             <div style="text-align:center; color:black; font-family:'Urbanist',sans-serif;">
-                                <div style="background:#d4fb79; color:black; font-weight:800; padding:5px; border-radius:8px; margin-bottom:5px;">~ ${bus.eta || '?'} min</div>
+                                <div style="background:var(--accent); color:white; font-weight:800; padding:5px; border-radius:8px; margin-bottom:5px;">~ ${bus.eta || '?'} min</div>
                                 <strong>${bus.chauffeur}</strong><br>
                                 <span style="font-size:0.8rem;">${bus.modele}</span><br>
                                 <span style="background:#facc15; padding:2px; font-weight:bold;">${bus.matricule}</span>
@@ -455,7 +506,6 @@
                         m.on('click', () => { afficherTrajet(bus); });
                         busMarkers[bus.bus_id] = m;
 
-                        // Si c'est le bus partagé, on zoom dessus directement
                         if(sharedBusId && bus.bus_id === sharedBusId) {
                             map.setView([bus.current_lat, bus.current_lon], 16);
                             m.openPopup();
@@ -487,7 +537,6 @@
         }
 
     let busStopsLayer = L.layerGroup().addTo(map); 
-    const iconStation = L.divIcon({ className: 'station-icon', html: `<div style="background:white; border:2px solid #333; width:12px; height:12px; border-radius:50%;"></div>`, iconSize: [12, 12], iconAnchor: [6, 6] });
 
     async function chargerArretsOsm() {
         const bounds = map.getBounds();

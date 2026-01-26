@@ -42,9 +42,25 @@
         .line { width: 2px; height: 50px; background: var(--text-muted); opacity: 0.3; margin: 5px 0; }
         .dot-end { width: 12px; height: 12px; border: 2px solid #ef4444; border-radius: 50%; }
         
-        .inputs-col { flex: 1; display: flex; flex-direction: column; gap: 15px; }
+        .inputs-col { flex: 1; display: flex; flex-direction: column; gap: 15px; position: relative; } /* Added relative for suggestions */
         .input-field { width: 100%; padding: 16px; border-radius: 12px; border: none; background: #0f172a; color: white; font-weight: 600; border: 1px solid var(--border); font-family: 'Urbanist', sans-serif; outline: none; box-sizing: border-box; }
         
+        /* --- STYLE DES SUGGESTIONS --- */
+        .suggestions-list {
+            position: absolute; left: 0; right: 0; z-index: 100;
+            background: #1e293b; border: 1px solid var(--border);
+            border-radius: 12px; max-height: 200px; overflow-y: auto;
+            margin-top: 5px; display: none; /* Caché par défaut */
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
+        .suggestions-list.active { display: block; }
+        .suggestion-item {
+            padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.05);
+            cursor: pointer; font-size: 0.9rem; color: #cbd5e1; transition: 0.2s;
+        }
+        .suggestion-item:hover { background: rgba(212, 251, 121, 0.1); color: var(--accent); }
+        .suggestion-item strong { color: white; }
+
         /* BOUTON VISIBILITÉ */
         .visibility-toggle {
             display: flex; align-items: center; justify-content: space-between;
@@ -101,8 +117,15 @@
             <div class="route-visual">
                 <div class="dots-col"><div class="dot-start"></div><div class="line"></div><div class="dot-end"></div></div>
                 <div class="inputs-col">
-                    <input type="text" class="input-field" id="txtDepart" placeholder="D'où partez-vous ? (ex: Tizi)">
-                    <input type="text" class="input-field" id="txtArrivee" placeholder="Où allez-vous ? (ex: Alger)">
+                    <div style="position:relative;">
+                        <input type="text" class="input-field" id="txtDepart" placeholder="D'où partez-vous ? (ex: Tizi)">
+                        <div id="listDepart" class="suggestions-list"></div>
+                    </div>
+                    
+                    <div style="position:relative;">
+                        <input type="text" class="input-field" id="txtArrivee" placeholder="Où allez-vous ? (ex: Alger)">
+                        <div id="listArrivee" class="suggestions-list"></div>
+                    </div>
                 </div>
             </div>
 
@@ -137,7 +160,7 @@
         
         let isVisibleToDriver = true;
         let userLat, userLon, userMarker;
-        let userSpeed = 0; // NOUVEAU : Variable pour la vitesse
+        let userSpeed = 0;
         let busMarkers = {};
 
         const session = JSON.parse(localStorage.getItem('user_session'));
@@ -153,7 +176,7 @@
             navigator.geolocation.watchPosition(pos => {
                 userLat = pos.coords.latitude;
                 userLon = pos.coords.longitude;
-                userSpeed = pos.coords.speed || 0; // NOUVEAU : On capture la vitesse (en m/s)
+                userSpeed = pos.coords.speed || 0;
                 
                 if(!userMarker) {
                     userMarker = L.marker([userLat, userLon], {icon: iconUser}).addTo(map);
@@ -162,8 +185,68 @@
                     userMarker.setLatLng([userLat, userLon]);
                 }
                 if(rechercheActive) fetchBus();
-            }, err => console.log(err), { enableHighAccuracy: true }); // Haute précision pour la vitesse
+            }, err => console.log(err), { enableHighAccuracy: true });
         }
+
+        // --- AUTOCOMPLÉTION ---
+        function setupAutocomplete(inputId, listId) {
+            const input = document.getElementById(inputId);
+            const list = document.getElementById(listId);
+            let timeout = null;
+
+            input.addEventListener('input', function() {
+                const query = this.value;
+                if(timeout) clearTimeout(timeout);
+                
+                if(query.length < 2) {
+                    list.classList.remove('active');
+                    return;
+                }
+
+                // Délai pour éviter trop d'appels API
+                timeout = setTimeout(async () => {
+                    try {
+                        // API OpenStreetMap restreinte à l'Algérie (dz)
+                        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&countrycodes=dz&addressdetails=1&limit=5`;
+                        const res = await fetch(url);
+                        const data = await res.json();
+
+                        list.innerHTML = '';
+                        if(data.length > 0) {
+                            list.classList.add('active');
+                            data.forEach(item => {
+                                // On essaie de trouver le nom propre (Ville, Village, Commune)
+                                const name = item.name;
+                                const details = item.address.state || item.address.county || "Algérie";
+                                
+                                const div = document.createElement('div');
+                                div.className = 'suggestion-item';
+                                div.innerHTML = `<strong>${name}</strong> <span style="font-size:0.8rem; color:#64748b;">(${details})</span>`;
+                                div.onclick = () => {
+                                    input.value = name; // On met juste le nom
+                                    list.classList.remove('active');
+                                };
+                                list.appendChild(div);
+                            });
+                        } else {
+                            list.classList.remove('active');
+                        }
+                    } catch(e) { console.error("Erreur autocomplete", e); }
+                }, 300);
+            });
+
+            // Cacher la liste si on clique ailleurs
+            document.addEventListener('click', (e) => {
+                if(e.target !== input && e.target !== list) {
+                    list.classList.remove('active');
+                }
+            });
+        }
+
+        // Initialisation de l'autocomplétion sur les 2 champs
+        setupAutocomplete('txtDepart', 'listDepart');
+        setupAutocomplete('txtArrivee', 'listArrivee');
+
 
         // --- GESTION VISIBILITE ---
         function toggleVisibility() {
@@ -232,15 +315,9 @@
             const dep = document.getElementById('txtDepart').value;
             const arr = document.getElementById('txtArrivee').value;
 
-            // --- NOUVELLE LOGIQUE VISIBILITÉ ---
-            // Si la vitesse dépasse 15 km/h (environ 4.1 m/s), on considère qu'il est en voiture/bus
-            // et on le cache automatiquement pour le chauffeur
             let speedKmH = (userSpeed || 0) * 3.6;
             let effectiveVisibility = isVisibleToDriver;
-            
-            if (speedKmH > 15) {
-                effectiveVisibility = false; // Il roule -> Invisible
-            }
+            if (speedKmH > 15) { effectiveVisibility = false; }
 
             try {
                 const res = await fetch(SERVER_URL + '/api/trouver-bus', {
@@ -250,7 +327,7 @@
                         user_lon: userLon, 
                         depart_text: dep, 
                         arrivee_text: arr,
-                        visible: effectiveVisibility // On envoie l'état calculé
+                        visible: effectiveVisibility 
                     })
                 });
                 const data = await res.json();
@@ -262,7 +339,6 @@
                 if(data.bus_proches && data.bus_proches.length > 0) {
                     data.bus_proches.forEach(bus => {
                         const m = L.marker([bus.current_lat, bus.current_lon], {icon: iconBus}).addTo(map);
-                        
                         m.bindPopup(`
                             <div style="text-align:center; color:black;">
                                 <strong>${bus.chauffeur}</strong><br>

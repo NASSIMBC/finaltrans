@@ -161,7 +161,6 @@
         .bus-meta { color: var(--accent); font-size: 0.85rem; font-weight: 600; }
         .bus-matricule { background: rgba(59, 130, 246, 0.15); padding: 2px 6px; border-radius: 4px; color: var(--accent); font-size: 0.75rem; margin-left: 5px; }
         .bus-distance { color: var(--text-main); font-weight: 700; }
-        
         .btn-share { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.1rem; margin-left: 10px; z-index: 5; }
         .btn-share:hover { color: var(--accent); }
     </style>
@@ -241,6 +240,7 @@
         const SERVER_URL = "https://finaltrans.onrender.com"; 
         
         // --- 0. IDENTIFIANT UNIQUE VOYAGEUR (POUR UPSERT) ---
+        // Ajout essentiel pour éviter les doublons GPS en base de données
         let passengerId = localStorage.getItem('my_passenger_id');
         if (!passengerId) {
             passengerId = 'user_' + Math.random().toString(36).substr(2, 9);
@@ -255,7 +255,7 @@
         let busMarkers = {};
         let map; 
         let tileLayer;
-        let isTraveling = false; // Flag pour savoir si on est monté dans le bus
+        let isTraveling = false; // Flag pour savoir si on est monté dans le bus (Vitesse > 15km/h)
 
         const session = JSON.parse(localStorage.getItem('user_session'));
         if(session && session.user.nom_complet) document.getElementById('txtName').innerText = session.user.nom_complet.split(' ')[0];
@@ -332,7 +332,7 @@
                 userLat = pos.coords.latitude; userLon = pos.coords.longitude;
                 userSpeed = pos.coords.speed || 0;
                 
-                // LOGIQUE VITESSE : Si > 15 km/h, on considère qu'il voyage
+                // --- LOGIQUE VITESSE : Si > 15 km/h, on considère qu'il voyage ---
                 let speedKmH = userSpeed * 3.6;
                 if (speedKmH > 15) { isTraveling = true; }
 
@@ -385,7 +385,7 @@
             document.querySelectorAll('.leaflet-marker-icon .terminus-flag').forEach(el => el.parentElement.remove());
             if(!dep && !arr) return alert("Remplissez au moins une ville !");
             
-            // RESET DU STATUT DE VOYAGE
+            // RESET DU STATUT DE VOYAGE (L'utilisateur cherche un nouveau bus)
             isTraveling = false;
             
             rechercheActive = true;
@@ -416,7 +416,7 @@
             const dep = document.getElementById('txtDepart').value;
             const arr = document.getElementById('txtArrivee').value;
 
-            // LOGIQUE VISIBILITÉ FINALE
+            // --- LOGIQUE VISIBILITÉ FINALE ---
             let effectiveVisibility = isVisibleToDriver;
             if (isTraveling) effectiveVisibility = false; // Si en voyage (dépassement 15km/h), invisible
 
@@ -429,7 +429,7 @@
                         depart_text: dep, 
                         arrivee_text: arr, 
                         visible: effectiveVisibility,
-                        passenger_id: passengerId // ID UNIQUE pour l'Upsert
+                        passenger_id: passengerId // ID UNIQUE envoyé au serveur
                     })
                 });
                 const data = await res.json();

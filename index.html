@@ -11,14 +11,14 @@
 
     <style>
         :root {
+            /* THÈME SOMBRE (INTERFACE SEULEMENT) */
             --bg-dark: #0f172a;
             --card-bg: rgba(30, 41, 59, 0.95);
-            --accent: #3b82f6; /* NOUVEAU : Bleu Électrique */
+            --accent: #3b82f6; /* Bleu Électrique */
             --accent-glow: rgba(59, 130, 246, 0.5);
             --text-main: #ffffff;
             --text-muted: #94a3b8;
             --border: rgba(255,255,255,0.1);
-            --map-tiles: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
         }
 
         [data-theme="light"] {
@@ -29,64 +29,37 @@
             --text-main: #0f172a;
             --text-muted: #64748b;
             --border: rgba(0,0,0,0.1);
-            --map-tiles: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
         }
 
-        body { margin: 0; font-family: 'Urbanist', sans-serif; background: black; overflow: hidden; }
+        body { margin: 0; font-family: 'Urbanist', sans-serif; background: #e5e7eb; overflow: hidden; }
         
-        #map { height: 100vh; width: 100%; z-index: 1; }
+        #map { height: 100vh; width: 100%; z-index: 1; background: #e5e7eb; }
         .leaflet-control-attribution { display: none; }
 
-        /* --- NOUVEAUX STYLES D'ICÔNES --- */
-        
-        /* Icône BUS Moderne */
+        /* ICÔNES */
         .modern-bus-icon {
             background: linear-gradient(135deg, var(--accent), #1d4ed8);
-            border-radius: 12px;
-            color: white;
-            display: flex; justify-content: center; align-items: center;
-            font-size: 1.2rem;
-            box-shadow: 0 0 15px var(--accent-glow);
-            border: 2px solid white;
-            transition: transform 0.3s;
+            border-radius: 12px; color: white; display: flex; justify-content: center; align-items: center;
+            font-size: 1.2rem; box-shadow: 0 4px 15px var(--accent-glow); border: 2px solid white; transition: transform 0.3s;
         }
-        
-        /* Icône USER Moderne (avec pulsation) */
         .modern-user-icon {
-            background: #10b981; /* Vert Menthe */
-            border-radius: 50%;
-            border: 3px solid white;
+            background: #10b981; border-radius: 50%; border: 3px solid white;
             box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
         }
         .pulse-ring {
-            border: 3px solid #10b981;
-            border-radius: 50%;
-            height: 40px; width: 40px;
-            position: absolute; left: -8px; top: -8px;
-            animation: pulsate 2s ease-out;
-            animation-iteration-count: infinite; 
-            opacity: 0.0;
+            border: 3px solid #10b981; border-radius: 50%; height: 40px; width: 40px;
+            position: absolute; left: -8px; top: -8px; animation: pulsate 2s ease-out infinite; opacity: 0.0;
         }
-        @keyframes pulsate {
-            0% {transform: scale(0.1, 0.1); opacity: 0.0;}
-            50% {opacity: 1.0;}
-            100% {transform: scale(1.2, 1.2); opacity: 0.0;}
-        }
+        @keyframes pulsate { 0% {transform: scale(0.1); opacity: 0.0;} 50% {opacity: 1.0;} 100% {transform: scale(1.2); opacity: 0.0;} }
+        .station-icon { background: white; border: 2px solid #64748b; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
 
-        /* Icône ARRÊT DE BUS */
-        .station-icon {
-            background: white; border: 3px solid #64748b;
-            border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.5);
-        }
-
-        /* --- UI EXISTANTE --- */
+        /* UI ELEMENTS */
         .top-bar { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; align-items: center; z-index: 1000; pointer-events: none; }
-        .profile-chip { pointer-events: auto; background: var(--card-bg); backdrop-filter: blur(10px); padding: 8px 16px 8px 8px; border-radius: 50px; display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .profile-chip { pointer-events: auto; background: var(--card-bg); backdrop-filter: blur(10px); padding: 8px 16px 8px 8px; border-radius: 50px; display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
         .profile-img { width: 35px; height: 35px; border-radius: 50%; border: 2px solid var(--accent); }
         .profile-text { font-size: 0.9rem; color: var(--text-main); font-weight: 700; }
-        
         .top-right-group { display: flex; gap: 10px; pointer-events: auto; }
-        .round-btn { width: 45px; height: 45px; background: var(--card-bg); border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 1px solid var(--border); cursor: pointer; color: var(--text-main); backdrop-filter: blur(10px); transition: 0.3s; }
+        .round-btn { width: 45px; height: 45px; background: var(--card-bg); border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 1px solid var(--border); cursor: pointer; color: var(--text-main); backdrop-filter: blur(10px); transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
         .round-btn:active { transform: scale(0.9); }
 
         .search-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); z-index: 2000; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; }
@@ -100,49 +73,29 @@
         .dot-start { width: 12px; height: 12px; background: var(--accent); border-radius: 50%; }
         .line { width: 2px; height: 50px; background: var(--text-muted); opacity: 0.3; margin: 5px 0; }
         .dot-end { width: 12px; height: 12px; border: 2px solid #ef4444; border-radius: 50%; }
-        
         .inputs-col { flex: 1; display: flex; flex-direction: column; gap: 15px; position: relative; } 
         .input-field { width: 100%; padding: 16px; border-radius: 12px; border: none; background: rgba(0,0,0,0.2); color: var(--text-main); font-weight: 600; border: 1px solid var(--border); font-family: 'Urbanist', sans-serif; outline: none; box-sizing: border-box; }
         [data-theme="light"] .input-field { background: #f8fafc; border: 1px solid #cbd5e1; }
 
-        .suggestions-list {
-            position: absolute; left: 0; right: 0; z-index: 100;
-            background: var(--card-bg); border: 1px solid var(--border);
-            border-radius: 12px; max-height: 200px; overflow-y: auto;
-            margin-top: 5px; display: none;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
-        }
+        .suggestions-list { position: absolute; left: 0; right: 0; z-index: 100; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; max-height: 200px; overflow-y: auto; margin-top: 5px; display: none; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
         .suggestions-list.active { display: block; }
         .suggestion-item { padding: 12px 15px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 0.9rem; color: var(--text-muted); transition: 0.2s; }
         .suggestion-item:hover { background: rgba(59, 130, 246, 0.1); color: var(--accent); }
         .suggestion-item strong { color: var(--text-main); }
 
         .options-row { display: flex; gap: 10px; margin-top: 20px; }
-        .visibility-toggle {
-            flex: 1; display: flex; align-items: center; justify-content: space-between;
-            background: rgba(255,255,255,0.05); padding: 12px 15px; border-radius: 12px; 
-            cursor: pointer; border: 1px solid transparent; transition: 0.3s;
-        }
+        .visibility-toggle { flex: 1; display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.05); padding: 12px 15px; border-radius: 12px; cursor: pointer; border: 1px solid transparent; transition: 0.3s; }
         [data-theme="light"] .visibility-toggle { background: #e2e8f0; }
         .visibility-toggle.active { border-color: var(--accent); background: rgba(59, 130, 246, 0.1); }
         .vis-icon { color: var(--text-muted); }
         .visibility-toggle.active .vis-icon { color: var(--accent); }
-        
-        .btn-fav-save {
-            width: 50px; display: flex; justify-content: center; align-items: center;
-            background: rgba(255,255,255,0.05); border-radius: 12px; border: 1px solid transparent; cursor: pointer;
-        }
+        .btn-fav-save { width: 50px; display: flex; justify-content: center; align-items: center; background: rgba(255,255,255,0.05); border-radius: 12px; border: 1px solid transparent; cursor: pointer; }
         [data-theme="light"] .btn-fav-save { background: #e2e8f0; }
         .btn-fav-save.saved { color: #ef4444; border-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
 
         .btn-main { width: 100%; padding: 16px; border-radius: 12px; border: none; background: var(--accent); color: white; font-size: 1rem; font-weight: 800; cursor: pointer; margin-top: 25px; }
-
         .favorites-bar { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; margin-top: 20px; }
-        .fav-chip {
-            background: var(--card-bg); border: 1px solid var(--border); padding: 8px 12px;
-            border-radius: 20px; font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; cursor: pointer;
-            display: flex; align-items: center; gap: 5px;
-        }
+        .fav-chip { background: var(--card-bg); border: 1px solid var(--border); padding: 8px 12px; border-radius: 20px; font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; cursor: pointer; display: flex; align-items: center; gap: 5px; }
         .fav-chip i { color: #ef4444; font-size: 0.7rem; }
 
         .bottom-sheet { position: absolute; bottom: 20px; left: 15px; right: 15px; background: var(--card-bg); backdrop-filter: blur(20px); border-radius: 24px; padding: 0 20px 20px 20px; z-index: 1500; border: 1px solid var(--border); transform: translateY(150%); transition: transform 0.4s cubic-bezier(0.33, 1, 0.68, 1); max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
@@ -161,7 +114,6 @@
         .bus-meta { color: var(--accent); font-size: 0.85rem; font-weight: 600; }
         .bus-matricule { background: rgba(59, 130, 246, 0.15); padding: 2px 6px; border-radius: 4px; color: var(--accent); font-size: 0.75rem; margin-left: 5px; }
         .bus-distance { color: var(--text-main); font-weight: 700; }
-        
         .btn-share { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.1rem; margin-left: 10px; z-index: 5; }
         .btn-share:hover { color: var(--accent); }
     </style>
@@ -239,6 +191,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
     <script>
         const SERVER_URL = "https://finaltrans.onrender.com"; 
+        
+        let passengerId = localStorage.getItem('my_passenger_id');
+        if (!passengerId) {
+            passengerId = 'user_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('my_passenger_id', passengerId);
+        }
+
         let rechercheActive = false;
         let currentRouteLayer = null; 
         let isVisibleToDriver = true;
@@ -247,169 +206,120 @@
         let busMarkers = {};
         let map; 
         let tileLayer;
+        let isTraveling = false;
 
         const session = JSON.parse(localStorage.getItem('user_session'));
         if(session && session.user.nom_complet) document.getElementById('txtName').innerText = session.user.nom_complet.split(' ')[0];
 
-        // --- INITIALISATION CARTE ---
+        // --- CARTE AMÉLIORÉE (STYLE PRO) ---
         function initMap() {
             map = L.map('map', { zoomControl: false }).setView([36.72, 4.05], 13);
-            const themeUrl = getComputedStyle(document.documentElement).getPropertyValue('--map-tiles').trim().replace(/'/g, "");
-            tileLayer = L.tileLayer(themeUrl).addTo(map);
+            
+            // Fond de carte Esri Gray (Gris Pro et Net)
+            const themeUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}';
+            
+            tileLayer = L.tileLayer(themeUrl, {
+                detectRetina: true, // Image plus nette
+                maxZoom: 16,
+                attribution: ''
+            }).addTo(map);
+            
+            // Ajout des noms de villes par dessus (Reference)
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+                detectRetina: true
+            }).addTo(map);
         }
         initMap();
 
-        // --- NOUVELLES ICÔNES MODERNES ---
-        // Icône Bus CSS (Bleu/Dégradé)
         const iconBus = L.divIcon({
             className: 'modern-bus-icon',
             html: '<i class="fas fa-bus"></i>',
-            iconSize: [36, 36],
-            iconAnchor: [18, 18],
-            popupAnchor: [0, -20]
+            iconSize: [36, 36], iconAnchor: [18, 18], popupAnchor: [0, -20]
         });
 
-        // Icône User CSS (Vert/Pulse)
         const iconUser = L.divIcon({
             className: 'custom-div-icon',
             html: `<div class="pulse-ring"></div><div class="modern-user-icon" style="width:24px; height:24px;"></div>`,
-            iconSize: [24, 24],
-            iconAnchor: [12, 12]
+            iconSize: [24, 24], iconAnchor: [12, 12]
         });
 
-        // Icône Arrêt
-        const iconStation = L.divIcon({ 
-            className: 'station-icon', 
-            html: '', 
-            iconSize: [12, 12], 
-            iconAnchor: [6, 6] 
-        });
+        const iconStation = L.divIcon({ className: 'station-icon', html: '', iconSize: [12, 12], iconAnchor: [6, 6] });
 
-        // --- GESTION THÈME (JOUR / NUIT) ---
         function toggleTheme() {
             const html = document.documentElement;
             const current = html.getAttribute('data-theme');
             const icon = document.getElementById('themeIcon');
-            
+            // Note: Avec Esri Gray, le thème sombre change juste l'interface, la carte reste grise (propre)
             if (current === 'dark') {
-                html.setAttribute('data-theme', 'light');
-                icon.className = "fas fa-sun";
-                tileLayer.setUrl('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
+                html.setAttribute('data-theme', 'light'); icon.className = "fas fa-sun";
             } else {
-                html.setAttribute('data-theme', 'dark');
-                icon.className = "fas fa-moon";
-                tileLayer.setUrl('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png');
+                html.setAttribute('data-theme', 'dark'); icon.className = "fas fa-moon";
             }
         }
 
-        // --- GESTION FAVORIS ---
         function loadFavorites() {
             const favs = JSON.parse(localStorage.getItem('tizi_favs') || '[]');
             const container = document.getElementById('favContainer');
             container.innerHTML = '';
-            
             favs.forEach((fav, index) => {
                 const chip = document.createElement('div');
                 chip.className = 'fav-chip';
                 chip.innerHTML = `<i class="fas fa-heart"></i> ${fav.arr}`; 
-                chip.onclick = () => {
-                    document.getElementById('txtDepart').value = fav.dep;
-                    document.getElementById('txtArrivee').value = fav.arr;
-                    lancerRecherche();
-                };
-                chip.oncontextmenu = (e) => {
-                    e.preventDefault();
-                    if(confirm("Supprimer ce favori ?")) {
-                        favs.splice(index, 1);
-                        localStorage.setItem('tizi_favs', JSON.stringify(favs));
-                        loadFavorites();
-                    }
-                };
+                chip.onclick = () => { document.getElementById('txtDepart').value = fav.dep; document.getElementById('txtArrivee').value = fav.arr; lancerRecherche(); };
+                chip.oncontextmenu = (e) => { e.preventDefault(); if(confirm("Supprimer ce favori ?")) { favs.splice(index, 1); localStorage.setItem('tizi_favs', JSON.stringify(favs)); loadFavorites(); } };
                 container.appendChild(chip);
             });
         }
 
         function saveFavorite() {
-            const dep = document.getElementById('txtDepart').value;
-            const arr = document.getElementById('txtArrivee').value;
+            const dep = document.getElementById('txtDepart').value; const arr = document.getElementById('txtArrivee').value;
             if(!dep || !arr) return alert("Remplissez le trajet d'abord !");
-            
             const favs = JSON.parse(localStorage.getItem('tizi_favs') || '[]');
             favs.push({ dep, arr });
             localStorage.setItem('tizi_favs', JSON.stringify(favs));
-            
-            const btn = document.querySelector('.btn-fav-save');
-            btn.classList.add('saved');
-            setTimeout(() => btn.classList.remove('saved'), 1000);
-            
+            const btn = document.querySelector('.btn-fav-save'); btn.classList.add('saved'); setTimeout(() => btn.classList.remove('saved'), 1000);
             loadFavorites();
         }
         loadFavorites(); 
 
-        // --- PARTAGE DE LIEN ---
         function shareBus(busId, chauffeurNom) {
             const url = `${window.location.origin}${window.location.pathname}?bus=${busId}`;
-            if (navigator.share) {
-                navigator.share({
-                    title: 'Suivre ce bus - Tizi Transport',
-                    text: `Suis le bus de ${chauffeurNom} en temps réel !`,
-                    url: url
-                }).catch(console.error);
-            } else {
-                navigator.clipboard.writeText(url);
-                alert("Lien copié dans le presse-papier !");
-            }
+            if (navigator.share) { navigator.share({ title: 'Suivre ce bus', text: `Suis le bus de ${chauffeurNom} !`, url: url }).catch(console.error); }
+            else { navigator.clipboard.writeText(url); alert("Lien copié !"); }
         }
 
-        // Vérification lien partagé
         const urlParams = new URLSearchParams(window.location.search);
         const sharedBusId = urlParams.get('bus');
-        if(sharedBusId) {
-            rechercheActive = true;
-            document.getElementById('searchOverlay').classList.remove('active');
-        }
+        if(sharedBusId) { rechercheActive = true; document.getElementById('searchOverlay').classList.remove('active'); }
 
-        // GPS USER
         if (navigator.geolocation) {
             navigator.geolocation.watchPosition(pos => {
-                userLat = pos.coords.latitude;
-                userLon = pos.coords.longitude;
+                userLat = pos.coords.latitude; userLon = pos.coords.longitude;
                 userSpeed = pos.coords.speed || 0;
                 
-                if(!userMarker) {
-                    userMarker = L.marker([userLat, userLon], {icon: iconUser}).addTo(map);
-                    map.setView([userLat, userLon], 14);
-                } else {
-                    userMarker.setLatLng([userLat, userLon]);
-                }
+                let speedKmH = userSpeed * 3.6;
+                if (speedKmH > 15) { isTraveling = true; }
+
+                if(!userMarker) { userMarker = L.marker([userLat, userLon], {icon: iconUser}).addTo(map); map.setView([userLat, userLon], 14); }
+                else { userMarker.setLatLng([userLat, userLon]); }
                 if(rechercheActive) fetchBus();
             }, err => console.log(err), { enableHighAccuracy: true });
         }
 
-        // AUTOCOMPLETION
         function setupAutocomplete(inputId, listId) {
-            const input = document.getElementById(inputId);
-            const list = document.getElementById(listId);
-            let timeout = null;
-
+            const input = document.getElementById(inputId); const list = document.getElementById(listId); let timeout = null;
             input.addEventListener('input', function() {
-                const query = this.value;
-                if(timeout) clearTimeout(timeout);
-                if(query.length < 2) { list.classList.remove('active'); return; }
-
+                const query = this.value; if(timeout) clearTimeout(timeout); if(query.length < 2) { list.classList.remove('active'); return; }
                 timeout = setTimeout(async () => {
                     try {
                         const url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&countrycodes=dz&addressdetails=1&limit=5`;
-                        const res = await fetch(url);
-                        const data = await res.json();
+                        const res = await fetch(url); const data = await res.json();
                         list.innerHTML = '';
                         if(data.length > 0) {
                             list.classList.add('active');
                             data.forEach(item => {
-                                const name = item.name;
-                                const details = item.address.state || "Algérie";
-                                const div = document.createElement('div');
-                                div.className = 'suggestion-item';
+                                const name = item.name; const details = item.address.state || "Algérie";
+                                const div = document.createElement('div'); div.className = 'suggestion-item';
                                 div.innerHTML = `<strong>${name}</strong> <span style="font-size:0.8rem;">(${details})</span>`;
                                 div.onclick = () => { input.value = name; list.classList.remove('active'); };
                                 list.appendChild(div);
@@ -420,33 +330,25 @@
             });
             document.addEventListener('click', (e) => { if(e.target !== input && e.target !== list) list.classList.remove('active'); });
         }
-        setupAutocomplete('txtDepart', 'listDepart');
-        setupAutocomplete('txtArrivee', 'listArrivee');
+        setupAutocomplete('txtDepart', 'listDepart'); setupAutocomplete('txtArrivee', 'listArrivee');
 
         function toggleVisibility() {
             isVisibleToDriver = !isVisibleToDriver;
-            const toggle = document.getElementById('visToggleIcon');
-            const text = document.getElementById('visText');
+            const toggle = document.getElementById('visToggleIcon'); const text = document.getElementById('visText');
             document.getElementById('btnVisibilite').classList.toggle('active');
-            
-            if(isVisibleToDriver) {
-                toggle.className = "fas fa-toggle-on"; toggle.style.color = "var(--accent)"; text.innerText = "Visible";
-            } else {
-                toggle.className = "fas fa-toggle-off"; toggle.style.color = "#64748b"; text.innerText = "Invisible";
-            }
+            if(isVisibleToDriver) { toggle.className = "fas fa-toggle-on"; toggle.style.color = "var(--accent)"; text.innerText = "Visible"; }
+            else { toggle.className = "fas fa-toggle-off"; toggle.style.color = "#64748b"; text.innerText = "Invisible"; }
         }
 
         function toggleSearch() { document.getElementById('searchOverlay').classList.toggle('active'); }
         function fermerResultats() { document.getElementById('resultsSheet').classList.remove('active'); }
 
         function lancerRecherche() {
-            const dep = document.getElementById('txtDepart').value;
-            const arr = document.getElementById('txtArrivee').value;
+            const dep = document.getElementById('txtDepart').value; const arr = document.getElementById('txtArrivee').value;
             if (currentRouteLayer) { map.removeLayer(currentRouteLayer); currentRouteLayer = null; }
             document.querySelectorAll('.leaflet-marker-icon .terminus-flag').forEach(el => el.parentElement.remove());
-
             if(!dep && !arr) return alert("Remplissez au moins une ville !");
-
+            isTraveling = false; 
             rechercheActive = true;
             document.getElementById('searchOverlay').classList.remove('active');
             document.getElementById('resultsSheet').classList.add('active');
@@ -457,12 +359,10 @@
         async function afficherTrajet(bus) {
             if (!bus.terminus_officiel) return;
             if (currentRouteLayer) { map.removeLayer(currentRouteLayer); currentRouteLayer = null; }
-            const start = `${bus.current_lon},${bus.current_lat}`;
-            const end = `${bus.terminus_officiel.lon},${bus.terminus_officiel.lat}`;
+            const start = `${bus.current_lon},${bus.current_lat}`; const end = `${bus.terminus_officiel.lon},${bus.terminus_officiel.lat}`;
             const url = `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson`;
             try {
-                const res = await fetch(url);
-                const data = await res.json();
+                const res = await fetch(url); const data = await res.json();
                 if (data.routes && data.routes.length > 0) {
                     currentRouteLayer = L.geoJSON(data.routes[0].geometry, { style: { color: "#3b82f6", weight: 6, opacity: 0.8 } }).addTo(map);
                     map.fitBounds(currentRouteLayer.getBounds(), { padding: [50, 50] });
@@ -477,14 +377,20 @@
             const dep = document.getElementById('txtDepart').value;
             const arr = document.getElementById('txtArrivee').value;
 
-            let speedKmH = (userSpeed || 0) * 3.6;
             let effectiveVisibility = isVisibleToDriver;
-            if (speedKmH > 15) effectiveVisibility = false;
+            if (isTraveling) effectiveVisibility = false;
 
             try {
                 const res = await fetch(SERVER_URL + '/api/trouver-bus', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ user_lat: userLat, user_lon: userLon, depart_text: dep, arrivee_text: arr, visible: effectiveVisibility })
+                    body: JSON.stringify({ 
+                        user_lat: userLat, 
+                        user_lon: userLon, 
+                        depart_text: dep, 
+                        arrivee_text: arr, 
+                        visible: effectiveVisibility,
+                        passenger_id: passengerId 
+                    })
                 });
                 const data = await res.json();
                 
@@ -507,9 +413,7 @@
                         busMarkers[bus.bus_id] = m;
 
                         if(sharedBusId && bus.bus_id === sharedBusId) {
-                            map.setView([bus.current_lat, bus.current_lon], 16);
-                            m.openPopup();
-                            afficherTrajet(bus);
+                            map.setView([bus.current_lat, bus.current_lon], 16); m.openPopup(); afficherTrajet(bus);
                         }
 
                         const div = document.createElement('div');
@@ -537,7 +441,6 @@
         }
 
     let busStopsLayer = L.layerGroup().addTo(map); 
-
     async function chargerArretsOsm() {
         const bounds = map.getBounds();
         if(map.getZoom() < 14) { busStopsLayer.clearLayers(); return; }
@@ -554,7 +457,7 @@
         } catch (e) { console.error("Erreur OSM:", e); }
     }
     map.on('moveend', chargerArretsOsm);
-    setInterval(fetchBus, 5000);
+    setInterval(fetchBus, 1000); 
     </script>
 </body>
 </html>

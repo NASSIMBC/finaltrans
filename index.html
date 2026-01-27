@@ -11,7 +11,6 @@
 
     <style>
         :root {
-            /* THÈME SOMBRE (INTERFACE SEULEMENT) */
             --bg-dark: #0f172a;
             --card-bg: rgba(30, 41, 59, 0.95);
             --accent: #3b82f6; /* Bleu Électrique */
@@ -31,9 +30,9 @@
             --border: rgba(0,0,0,0.1);
         }
 
-        body { margin: 0; font-family: 'Urbanist', sans-serif; background: #e5e7eb; overflow: hidden; }
+        body { margin: 0; font-family: 'Urbanist', sans-serif; background: #1a1a1a; overflow: hidden; }
         
-        #map { height: 100vh; width: 100%; z-index: 1; background: #e5e7eb; }
+        #map { height: 100vh; width: 100%; z-index: 1; background: #1a1a1a; }
         .leaflet-control-attribution { display: none; }
 
         /* ICÔNES */
@@ -211,22 +210,17 @@
         const session = JSON.parse(localStorage.getItem('user_session'));
         if(session && session.user.nom_complet) document.getElementById('txtName').innerText = session.user.nom_complet.split(' ')[0];
 
-        // --- CARTE AMÉLIORÉE (STYLE PRO) ---
+        // --- CARTE GRIS FONCÉ + ROUTES BLANCHES ---
         function initMap() {
             map = L.map('map', { zoomControl: false }).setView([36.72, 4.05], 13);
             
-            // Fond de carte Esri Gray (Gris Pro et Net)
-            const themeUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}';
+            // CartoDB Dark Matter (Le meilleur gris foncé lisse pour la nuit)
+            const themeUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
             
             tileLayer = L.tileLayer(themeUrl, {
-                detectRetina: true, // Image plus nette
-                maxZoom: 16,
+                detectRetina: true, // HD
+                maxZoom: 20,
                 attribution: ''
-            }).addTo(map);
-            
-            // Ajout des noms de villes par dessus (Reference)
-            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
-                detectRetina: true
             }).addTo(map);
         }
         initMap();
@@ -249,7 +243,9 @@
             const html = document.documentElement;
             const current = html.getAttribute('data-theme');
             const icon = document.getElementById('themeIcon');
-            // Note: Avec Esri Gray, le thème sombre change juste l'interface, la carte reste grise (propre)
+            
+            // NOTE : La carte reste en "Dark Matter" (Gris foncé/Routes blanches) quel que soit le thème UI
+            // Seule l'interface (boutons, panneaux) change de couleur.
             if (current === 'dark') {
                 html.setAttribute('data-theme', 'light'); icon.className = "fas fa-sun";
             } else {

@@ -13,11 +13,12 @@
         :root {
             --bg-dark: #0f172a;
             --card-bg: rgba(30, 41, 59, 0.95);
-            --accent: #3b82f6; /* Bleu Électrique */
+            --accent: #3b82f6; /* NOUVEAU : Bleu Électrique */
             --accent-glow: rgba(59, 130, 246, 0.5);
             --text-main: #ffffff;
             --text-muted: #94a3b8;
             --border: rgba(255,255,255,0.1);
+            --map-tiles: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
         }
 
         [data-theme="light"] {
@@ -28,37 +29,64 @@
             --text-main: #0f172a;
             --text-muted: #64748b;
             --border: rgba(0,0,0,0.1);
+            --map-tiles: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
         }
 
-        body { margin: 0; font-family: 'Urbanist', sans-serif; background: #1a1a1a; overflow: hidden; }
+        body { margin: 0; font-family: 'Urbanist', sans-serif; background: black; overflow: hidden; }
         
-        #map { height: 100vh; width: 100%; z-index: 1; background: #1a1a1a; }
+        #map { height: 100vh; width: 100%; z-index: 1; }
         .leaflet-control-attribution { display: none; }
 
-        /* ICÔNES */
+        /* --- NOUVEAUX STYLES D'ICÔNES --- */
+        
+        /* Icône BUS Moderne */
         .modern-bus-icon {
             background: linear-gradient(135deg, var(--accent), #1d4ed8);
-            border-radius: 12px; color: white; display: flex; justify-content: center; align-items: center;
-            font-size: 1.2rem; box-shadow: 0 4px 15px var(--accent-glow); border: 2px solid white; transition: transform 0.3s;
+            border-radius: 12px;
+            color: white;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 1.2rem;
+            box-shadow: 0 0 15px var(--accent-glow);
+            border: 2px solid white;
+            transition: transform 0.3s;
         }
+        
+        /* Icône USER Moderne (avec pulsation) */
         .modern-user-icon {
-            background: #10b981; border-radius: 50%; border: 3px solid white;
+            background: #10b981; /* Vert Menthe */
+            border-radius: 50%;
+            border: 3px solid white;
             box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
         }
         .pulse-ring {
-            border: 3px solid #10b981; border-radius: 50%; height: 40px; width: 40px;
-            position: absolute; left: -8px; top: -8px; animation: pulsate 2s ease-out infinite; opacity: 0.0;
+            border: 3px solid #10b981;
+            border-radius: 50%;
+            height: 40px; width: 40px;
+            position: absolute; left: -8px; top: -8px;
+            animation: pulsate 2s ease-out;
+            animation-iteration-count: infinite; 
+            opacity: 0.0;
         }
-        @keyframes pulsate { 0% {transform: scale(0.1); opacity: 0.0;} 50% {opacity: 1.0;} 100% {transform: scale(1.2); opacity: 0.0;} }
-        .station-icon { background: white; border: 2px solid #64748b; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        @keyframes pulsate {
+            0% {transform: scale(0.1, 0.1); opacity: 0.0;}
+            50% {opacity: 1.0;}
+            100% {transform: scale(1.2, 1.2); opacity: 0.0;}
+        }
 
-        /* UI ELEMENTS */
+        /* Icône ARRÊT DE BUS */
+        .station-icon {
+            background: white; border: 3px solid #64748b;
+            border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        }
+
+        /* --- UI EXISTANTE --- */
         .top-bar { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; align-items: center; z-index: 1000; pointer-events: none; }
-        .profile-chip { pointer-events: auto; background: var(--card-bg); backdrop-filter: blur(10px); padding: 8px 16px 8px 8px; border-radius: 50px; display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .profile-chip { pointer-events: auto; background: var(--card-bg); backdrop-filter: blur(10px); padding: 8px 16px 8px 8px; border-radius: 50px; display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
         .profile-img { width: 35px; height: 35px; border-radius: 50%; border: 2px solid var(--accent); }
         .profile-text { font-size: 0.9rem; color: var(--text-main); font-weight: 700; }
+        
         .top-right-group { display: flex; gap: 10px; pointer-events: auto; }
-        .round-btn { width: 45px; height: 45px; background: var(--card-bg); border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 1px solid var(--border); cursor: pointer; color: var(--text-main); backdrop-filter: blur(10px); transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .round-btn { width: 45px; height: 45px; background: var(--card-bg); border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 1px solid var(--border); cursor: pointer; color: var(--text-main); backdrop-filter: blur(10px); transition: 0.3s; }
         .round-btn:active { transform: scale(0.9); }
 
         .search-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); z-index: 2000; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; }
@@ -72,29 +100,49 @@
         .dot-start { width: 12px; height: 12px; background: var(--accent); border-radius: 50%; }
         .line { width: 2px; height: 50px; background: var(--text-muted); opacity: 0.3; margin: 5px 0; }
         .dot-end { width: 12px; height: 12px; border: 2px solid #ef4444; border-radius: 50%; }
+        
         .inputs-col { flex: 1; display: flex; flex-direction: column; gap: 15px; position: relative; } 
         .input-field { width: 100%; padding: 16px; border-radius: 12px; border: none; background: rgba(0,0,0,0.2); color: var(--text-main); font-weight: 600; border: 1px solid var(--border); font-family: 'Urbanist', sans-serif; outline: none; box-sizing: border-box; }
         [data-theme="light"] .input-field { background: #f8fafc; border: 1px solid #cbd5e1; }
 
-        .suggestions-list { position: absolute; left: 0; right: 0; z-index: 100; background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; max-height: 200px; overflow-y: auto; margin-top: 5px; display: none; box-shadow: 0 10px 20px rgba(0,0,0,0.5); }
+        .suggestions-list {
+            position: absolute; left: 0; right: 0; z-index: 100;
+            background: var(--card-bg); border: 1px solid var(--border);
+            border-radius: 12px; max-height: 200px; overflow-y: auto;
+            margin-top: 5px; display: none;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
         .suggestions-list.active { display: block; }
         .suggestion-item { padding: 12px 15px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 0.9rem; color: var(--text-muted); transition: 0.2s; }
         .suggestion-item:hover { background: rgba(59, 130, 246, 0.1); color: var(--accent); }
         .suggestion-item strong { color: var(--text-main); }
 
         .options-row { display: flex; gap: 10px; margin-top: 20px; }
-        .visibility-toggle { flex: 1; display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.05); padding: 12px 15px; border-radius: 12px; cursor: pointer; border: 1px solid transparent; transition: 0.3s; }
+        .visibility-toggle {
+            flex: 1; display: flex; align-items: center; justify-content: space-between;
+            background: rgba(255,255,255,0.05); padding: 12px 15px; border-radius: 12px; 
+            cursor: pointer; border: 1px solid transparent; transition: 0.3s;
+        }
         [data-theme="light"] .visibility-toggle { background: #e2e8f0; }
         .visibility-toggle.active { border-color: var(--accent); background: rgba(59, 130, 246, 0.1); }
         .vis-icon { color: var(--text-muted); }
         .visibility-toggle.active .vis-icon { color: var(--accent); }
-        .btn-fav-save { width: 50px; display: flex; justify-content: center; align-items: center; background: rgba(255,255,255,0.05); border-radius: 12px; border: 1px solid transparent; cursor: pointer; }
+        
+        .btn-fav-save {
+            width: 50px; display: flex; justify-content: center; align-items: center;
+            background: rgba(255,255,255,0.05); border-radius: 12px; border: 1px solid transparent; cursor: pointer;
+        }
         [data-theme="light"] .btn-fav-save { background: #e2e8f0; }
         .btn-fav-save.saved { color: #ef4444; border-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
 
         .btn-main { width: 100%; padding: 16px; border-radius: 12px; border: none; background: var(--accent); color: white; font-size: 1rem; font-weight: 800; cursor: pointer; margin-top: 25px; }
+
         .favorites-bar { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; margin-top: 20px; }
-        .fav-chip { background: var(--card-bg); border: 1px solid var(--border); padding: 8px 12px; border-radius: 20px; font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+        .fav-chip {
+            background: var(--card-bg); border: 1px solid var(--border); padding: 8px 12px;
+            border-radius: 20px; font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; cursor: pointer;
+            display: flex; align-items: center; gap: 5px;
+        }
         .fav-chip i { color: #ef4444; font-size: 0.7rem; }
 
         .bottom-sheet { position: absolute; bottom: 20px; left: 15px; right: 15px; background: var(--card-bg); backdrop-filter: blur(20px); border-radius: 24px; padding: 0 20px 20px 20px; z-index: 1500; border: 1px solid var(--border); transform: translateY(150%); transition: transform 0.4s cubic-bezier(0.33, 1, 0.68, 1); max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
@@ -113,6 +161,7 @@
         .bus-meta { color: var(--accent); font-size: 0.85rem; font-weight: 600; }
         .bus-matricule { background: rgba(59, 130, 246, 0.15); padding: 2px 6px; border-radius: 4px; color: var(--accent); font-size: 0.75rem; margin-left: 5px; }
         .bus-distance { color: var(--text-main); font-weight: 700; }
+        
         .btn-share { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.1rem; margin-left: 10px; z-index: 5; }
         .btn-share:hover { color: var(--accent); }
     </style>
@@ -191,6 +240,7 @@
     <script>
         const SERVER_URL = "https://finaltrans.onrender.com"; 
         
+        // --- 0. IDENTIFIANT UNIQUE VOYAGEUR (POUR UPSERT) ---
         let passengerId = localStorage.getItem('my_passenger_id');
         if (!passengerId) {
             passengerId = 'user_' + Math.random().toString(36).substr(2, 9);
@@ -205,23 +255,15 @@
         let busMarkers = {};
         let map; 
         let tileLayer;
-        let isTraveling = false;
+        let isTraveling = false; // Flag pour savoir si on est monté dans le bus
 
         const session = JSON.parse(localStorage.getItem('user_session'));
         if(session && session.user.nom_complet) document.getElementById('txtName').innerText = session.user.nom_complet.split(' ')[0];
 
-        // --- CARTE GRIS FONCÉ + ROUTES BLANCHES ---
         function initMap() {
             map = L.map('map', { zoomControl: false }).setView([36.72, 4.05], 13);
-            
-            // CartoDB Dark Matter (Le meilleur gris foncé lisse pour la nuit)
-            const themeUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-            
-            tileLayer = L.tileLayer(themeUrl, {
-                detectRetina: true, // HD
-                maxZoom: 20,
-                attribution: ''
-            }).addTo(map);
+            const themeUrl = getComputedStyle(document.documentElement).getPropertyValue('--map-tiles').trim().replace(/'/g, "");
+            tileLayer = L.tileLayer(themeUrl).addTo(map);
         }
         initMap();
 
@@ -243,13 +285,10 @@
             const html = document.documentElement;
             const current = html.getAttribute('data-theme');
             const icon = document.getElementById('themeIcon');
-            
-            // NOTE : La carte reste en "Dark Matter" (Gris foncé/Routes blanches) quel que soit le thème UI
-            // Seule l'interface (boutons, panneaux) change de couleur.
             if (current === 'dark') {
-                html.setAttribute('data-theme', 'light'); icon.className = "fas fa-sun";
+                html.setAttribute('data-theme', 'light'); icon.className = "fas fa-sun"; tileLayer.setUrl('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
             } else {
-                html.setAttribute('data-theme', 'dark'); icon.className = "fas fa-moon";
+                html.setAttribute('data-theme', 'dark'); icon.className = "fas fa-moon"; tileLayer.setUrl('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png');
             }
         }
 
@@ -293,6 +332,7 @@
                 userLat = pos.coords.latitude; userLon = pos.coords.longitude;
                 userSpeed = pos.coords.speed || 0;
                 
+                // LOGIQUE VITESSE : Si > 15 km/h, on considère qu'il voyage
                 let speedKmH = userSpeed * 3.6;
                 if (speedKmH > 15) { isTraveling = true; }
 
@@ -344,7 +384,10 @@
             if (currentRouteLayer) { map.removeLayer(currentRouteLayer); currentRouteLayer = null; }
             document.querySelectorAll('.leaflet-marker-icon .terminus-flag').forEach(el => el.parentElement.remove());
             if(!dep && !arr) return alert("Remplissez au moins une ville !");
-            isTraveling = false; 
+            
+            // RESET DU STATUT DE VOYAGE
+            isTraveling = false;
+            
             rechercheActive = true;
             document.getElementById('searchOverlay').classList.remove('active');
             document.getElementById('resultsSheet').classList.add('active');
@@ -373,8 +416,9 @@
             const dep = document.getElementById('txtDepart').value;
             const arr = document.getElementById('txtArrivee').value;
 
+            // LOGIQUE VISIBILITÉ FINALE
             let effectiveVisibility = isVisibleToDriver;
-            if (isTraveling) effectiveVisibility = false;
+            if (isTraveling) effectiveVisibility = false; // Si en voyage (dépassement 15km/h), invisible
 
             try {
                 const res = await fetch(SERVER_URL + '/api/trouver-bus', {
@@ -385,7 +429,7 @@
                         depart_text: dep, 
                         arrivee_text: arr, 
                         visible: effectiveVisibility,
-                        passenger_id: passengerId 
+                        passenger_id: passengerId // ID UNIQUE pour l'Upsert
                     })
                 });
                 const data = await res.json();
@@ -453,6 +497,8 @@
         } catch (e) { console.error("Erreur OSM:", e); }
     }
     map.on('moveend', chargerArretsOsm);
+    
+    // --- ACTUALISATION RAPIDE (1 SECONDE) ---
     setInterval(fetchBus, 1000); 
     </script>
 </body>

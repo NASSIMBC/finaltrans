@@ -77,7 +77,7 @@
         .modal-card {
             background: #1e293b; width: 100%; border-top-left-radius: 25px; border-top-right-radius: 25px;
             padding: 25px; transform: translateY(100%); transition: 0.3s;
-            max-height: 80vh; overflow-y: auto;
+            max-height: 85vh; overflow-y: auto; box-sizing: border-box;
         }
         .modal-overlay.active .modal-card { transform: translateY(0); }
 
@@ -92,7 +92,7 @@
             border-radius: 12px; color: white; font-family: inherit; box-sizing: border-box;
         }
         
-        .section-title { color: var(--accent); font-weight: 800; margin: 20px 0 10px 0; font-size: 0.9rem; text-transform: uppercase; }
+        .section-title { color: var(--accent); font-weight: 800; margin: 25px 0 10px 0; font-size: 0.9rem; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; }
 
         .btn-save {
             width: 100%; padding: 15px; background: white; color: black;
@@ -105,6 +105,14 @@
             border-radius: 30px; font-weight: 800; font-size: 0.8rem;
             z-index: 1000; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
+
+        /* --- STYLES SWITCH TOGGLE (NOUVEAU) --- */
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; -webkit-transition: .4s; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; -webkit-transition: .4s; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--accent); }
+        input:checked + .slider:before { -webkit-transform: translateX(24px); -ms-transform: translateX(24px); transform: translateX(24px); }
     </style>
 </head>
 <body>
@@ -115,8 +123,7 @@
 
     <div class="top-bar">
         <div class="profile-btn" onclick="toggleProfile()">
-            <i class="fas fa-user"></i>
-        </div>
+            <i class="fas fa-cog"></i> </div>
         <div class="status-badge">
             <div class="status-dot" id="statusDot"></div>
             <span id="statusText">HORS LIGNE</span>
@@ -134,8 +141,21 @@
     <div class="modal-overlay" id="profileModal">
         <div class="modal-card">
             <div class="modal-header">
-                <div class="modal-title">Mon Profil & Ligne</div>
+                <div class="modal-title">Paramètres</div>
                 <button class="btn-close" onclick="toggleProfile()"><i class="fas fa-times"></i></button>
+            </div>
+
+            <div class="section-title"><i class="fas fa-ticket-alt"></i> Vente de Tickets</div>
+            <div class="input-group" style="display:flex; justify-content:space-between; align-items:center; background:#0f172a; padding:15px; border-radius:12px; border:1px solid #334155;">
+                <label class="input-label" style="margin:0; font-weight:bold; color:white;">Activer la vente</label>
+                <label class="switch">
+                    <input type="checkbox" id="pTicketActive">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+            <div class="input-group">
+                <label class="input-label">Prix du Ticket (DA)</label>
+                <input type="number" class="input-field" id="pTicketPrice" placeholder="ex: 100">
             </div>
 
             <div class="section-title">Informations</div>
@@ -210,6 +230,10 @@
             document.getElementById('pMatricule').value = session.user.matricule_vehicule || '';
             document.getElementById('pVdep').value = session.user.ville_depart || '';
             document.getElementById('pVarr').value = session.user.ville_arrivee || '';
+            
+            // --- REMPLISSAGE INFOS TICKET (NOUVEAU) ---
+            document.getElementById('pTicketActive').checked = session.user.ticket_actif || false;
+            document.getElementById('pTicketPrice').value = session.user.ticket_prix || 100;
 
             // Carte centrée sur Tizi par défaut ou dernière pos
             const startLat = session.user.dep_lat || 36.72;
@@ -219,7 +243,6 @@
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
             chargerLigneSurCarte();
-            // On ne trace pas la route statique ici, on attend le GPS pour tracer "ce qu'il reste"
         }
 
         function chargerLigneSurCarte() {
@@ -236,25 +259,17 @@
             }
         }
 
-        // --- NOUVEAU : MISE A JOUR DYNAMIQUE DU TRACÉ RESTANT ---
         async function updateDynamicRoute(currentLat, currentLon, directionName) {
-            // Pas de destination définie = pas de tracé
             if (!session.user.dep_lat || !session.user.arr_lat) return;
 
             let targetLat, targetLon;
-            
-            // On détermine le point cible en fonction de la direction renvoyée par le serveur
             const dir = (directionName || "").toLowerCase();
             const vArr = (session.user.ville_arrivee || "").toLowerCase();
 
             if (dir.includes(vArr)) {
-                // Direction Arrivée -> On va vers les coords Arrivée
-                targetLat = session.user.arr_lat;
-                targetLon = session.user.arr_lon;
+                targetLat = session.user.arr_lat; targetLon = session.user.arr_lon;
             } else {
-                // Direction Départ (ou inconnu) -> On va vers les coords Départ
-                targetLat = session.user.dep_lat;
-                targetLon = session.user.dep_lon;
+                targetLat = session.user.dep_lat; targetLon = session.user.dep_lon;
             }
 
             const start = `${currentLon},${currentLat}`;
@@ -299,16 +314,17 @@
                 matricule_vehicule: document.getElementById('pMatricule').value,
                 ville_depart: document.getElementById('pVdep').value,
                 ville_arrivee: document.getElementById('pVarr').value,
+                // --- SAUVEGARDE TICKET (NOUVEAU) ---
+                ticket_actif: document.getElementById('pTicketActive').checked,
+                ticket_prix: document.getElementById('pTicketPrice').value
             };
             if(markerDep) {
                 const pos = markerDep.getLatLng();
-                data.dep_lat = pos.lat;
-                data.dep_lon = pos.lng;
+                data.dep_lat = pos.lat; data.dep_lon = pos.lng;
             }
             if(markerArr) {
                 const pos = markerArr.getLatLng();
-                data.arr_lat = pos.lat;
-                data.arr_lon = pos.lng;
+                data.arr_lat = pos.lat; data.arr_lon = pos.lng;
             }
             try {
                 const res = await fetch(SERVER_URL + '/api/update-driver-profile', {
@@ -339,8 +355,7 @@
                             const iconArrow = L.divIcon({
                                 className: 'custom-div-icon',
                                 html: `<div style="background:#3b82f6; width:20px; height:20px; border-radius:50%; border:3px solid white; box-shadow:0 0 10px #3b82f6;"></div>`,
-                                iconSize: [20, 20],
-                                iconAnchor: [10, 10]
+                                iconSize: [20, 20], iconAnchor: [10, 10]
                             });
                             userMarker = L.marker([lat, lon], {icon: iconArrow}).addTo(map);
                             map.setView([lat, lon], 16);
@@ -354,10 +369,7 @@
                         })
                         .then(r => r.json())
                         .then(data => {
-                            // 1. Mettre à jour le tracé restant (Route dynamique)
                             updateDynamicRoute(lat, lon, data.direction);
-
-                            // 2. Afficher voyageurs
                             if(data.voyageurs) {
                                 clientMarkers.forEach(m => map.removeLayer(m));
                                 clientMarkers = [];
@@ -383,6 +395,13 @@
 
             } else {
                 navigator.geolocation.clearWatch(watchId);
+                
+                // APPEL API POUR DIRE AU SERVEUR QU'ON ARRETE
+                fetch(SERVER_URL + '/api/stop-driving', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ id: session.user.id })
+                });
+
                 isOnline = false;
                 btn.innerText = "GO";
                 btn.classList.remove('offline');
@@ -390,7 +409,7 @@
                 statusDot.classList.remove('active');
                 clientMarkers.forEach(m => map.removeLayer(m));
                 clientMarkers = [];
-                if(routeLayer) { map.removeLayer(routeLayer); routeLayer = null; } // Effacer le tracé si on stop
+                if(routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
             }
         }
 

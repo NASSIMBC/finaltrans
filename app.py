@@ -1,8 +1,8 @@
 import os
 import math
 import datetime 
-import feedparser # NOUVEAU
-from dateutil import parser as date_parser # NOUVEAU (pip install python-dateutil)
+import feedparser
+from dateutil import parser as date_parser
 from flask import Flask, request, jsonify, send_from_directory
 from supabase import create_client, Client
 from flask_cors import CORS
@@ -17,7 +17,7 @@ CORS(app)
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-# Nettoyage des clés (au cas où il y a des guillemets dans le .env)
+# Nettoyage des clés
 if SUPABASE_URL: 
     SUPABASE_URL = SUPABASE_URL.strip().strip("'").strip('"')
 if SUPABASE_KEY: 
@@ -160,6 +160,7 @@ def update_position():
             dist_to_dep = haversine(lat, lon, coord_dep['lat'], coord_dep['lon'])
             dist_to_arr = haversine(lat, lon, coord_arr['lat'], coord_arr['lon'])
 
+            # Arrêt automatique si proche du terminus (< 300m)
             if dist_to_arr < 0.3:
                 supabase.table('active_trips').delete().eq('chauffeur_id', driver_id).execute()
                 return jsonify({
@@ -250,6 +251,7 @@ def api_trouver_bus():
         except Exception as e: print(f"⚠️ Erreur: {e}")
 
     try:
+        # Timeout 45 secondes pour considérer un bus comme hors ligne
         timeout_limit = (datetime.datetime.utcnow() - datetime.timedelta(seconds=45)).isoformat()
         active_trips = supabase.table('active_trips').select('*').gt('last_update', timeout_limit).execute().data
         bus_proches = []
@@ -376,13 +378,11 @@ def update_driver_profile():
 # --- API 6 : NEWS ALGERIE ---
 @app.route('/api/news', methods=['GET'])
 def get_transport_news():
-    # Sources d'info fiables en Algérie
     rss_urls = [
         "https://www.tsa-algerie.com/feed/",
         "https://www.algerie360.com/feed/",
-        "https://www.aps.dz/algerie?format=feed" # Agence Presse Service
+        "https://www.aps.dz/algerie?format=feed"
     ]
-    
     keywords = ["transport", "bus", "tramway", "métro", "route", "circulation", "tizi ouzou", "naftal", "etusa", "train", "sntf", "autoroute"]
     news_items = []
 
@@ -390,7 +390,6 @@ def get_transport_news():
         for url in rss_urls:
             feed = feedparser.parse(url)
             for entry in feed.entries:
-                # Filtrage intelligent
                 text_content = (entry.title + " " + entry.description).lower()
                 if any(k in text_content for k in keywords):
                     try:
@@ -399,7 +398,6 @@ def get_transport_news():
                     except:
                         date_str = "Récemment"
 
-                    # Nettoyage du résumé HTML si nécessaire
                     summary_text = entry.description.replace('<p>', '').replace('</p>', '')[:120] + "..."
 
                     news_items.append({
@@ -415,5 +413,8 @@ def get_transport_news():
         print(f"Erreur News: {e}")
         return jsonify([])
 
+# --- POINT D'ENTRÉE (CORRECTIF RENDER) ---
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    # Utilisation du port d'environnement ou 5000 par défaut
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)

@@ -10,109 +10,47 @@
     <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@500;700;800&display=swap" rel="stylesheet">
 
     <style>
-        :root {
-            --bg-dark: #0f172a;
-            --card-bg: rgba(30, 41, 59, 0.95);
-            --accent: #d4fb79; /* Vert Néon */
-            --danger: #ef4444; /* Rouge */
-            --text-main: #ffffff;
-        }
-
+        :root { --bg-dark: #0f172a; --card-bg: rgba(30, 41, 59, 0.95); --accent: #d4fb79; --danger: #ef4444; --text-main: #ffffff; }
         body { margin: 0; font-family: 'Urbanist', sans-serif; background: black; overflow: hidden; }
-        
         #map { height: 100vh; width: 100%; z-index: 1; }
         .leaflet-control-attribution { display: none; }
-
-        /* --- HEADER FLOTTANT --- */
-        .top-bar {
-            position: absolute; top: 20px; left: 20px; right: 20px;
-            display: flex; justify-content: space-between; align-items: center;
-            z-index: 1000; pointer-events: none;
-        }
-        
-        .profile-btn {
-            pointer-events: auto;
-            background: var(--card-bg); width: 45px; height: 45px;
-            border-radius: 50%; display: flex; justify-content: center; align-items: center;
-            border: 2px solid var(--accent); cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        }
-
-        .status-badge {
-            background: rgba(0,0,0,0.6); backdrop-filter: blur(5px);
-            padding: 8px 15px; border-radius: 20px; color: white;
-            font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 8px;
-        }
+        .top-bar { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; align-items: center; z-index: 1000; pointer-events: none; }
+        .profile-btn { pointer-events: auto; background: var(--card-bg); width: 45px; height: 45px; border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 2px solid var(--accent); cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .status-badge { background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); padding: 8px 15px; border-radius: 20px; color: white; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
         .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #64748b; }
         .status-dot.active { background: var(--danger); animation: blink 1s infinite; }
         @keyframes blink { 50% { opacity: 0.5; } }
-
-        /* --- BOUTON GO FLOTTANT --- */
-        .bottom-controls {
-            position: absolute; bottom: 40px; left: 0; right: 0;
-            display: flex; justify-content: center; z-index: 1000;
-            pointer-events: none;
-        }
-
-        .btn-go {
-            pointer-events: auto;
-            width: 80px; height: 80px; border-radius: 50%;
-            background: var(--accent); border: 4px solid rgba(255,255,255,0.2);
-            color: black; font-weight: 900; font-size: 1.2rem;
-            display: flex; justify-content: center; align-items: center;
-            cursor: pointer; box-shadow: 0 0 30px rgba(212, 251, 121, 0.4);
-            transition: 0.3s;
-        }
+        .bottom-controls { position: absolute; bottom: 40px; left: 0; right: 0; display: flex; justify-content: center; z-index: 1000; pointer-events: none; }
+        .btn-go { pointer-events: auto; width: 80px; height: 80px; border-radius: 50%; background: var(--accent); border: 4px solid rgba(255,255,255,0.2); color: black; font-weight: 900; font-size: 1.2rem; display: flex; justify-content: center; align-items: center; cursor: pointer; box-shadow: 0 0 30px rgba(212, 251, 121, 0.4); transition: 0.3s; }
         .btn-go.offline { background: var(--danger); color: white; box-shadow: 0 0 30px rgba(239, 68, 68, 0.4); }
-
-        /* --- MODAL PROFIL --- */
-        .modal-overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); z-index: 2000;
-            display: flex; justify-content: center; align-items: flex-end;
-            visibility: hidden; opacity: 0; transition: 0.3s;
-        }
+        .modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; display: flex; justify-content: center; align-items: flex-end; visibility: hidden; opacity: 0; transition: 0.3s; }
         .modal-overlay.active { visibility: visible; opacity: 1; }
-
-        .modal-card {
-            background: #1e293b; width: 100%; border-top-left-radius: 25px; border-top-right-radius: 25px;
-            padding: 25px; transform: translateY(100%); transition: 0.3s;
-            max-height: 85vh; overflow-y: auto; box-sizing: border-box;
-        }
+        .modal-card { background: #1e293b; width: 100%; border-top-left-radius: 25px; border-top-right-radius: 25px; padding: 25px; transform: translateY(100%); transition: 0.3s; max-height: 85vh; overflow-y: auto; box-sizing: border-box; }
         .modal-overlay.active .modal-card { transform: translateY(0); }
-
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .modal-title { font-size: 1.2rem; font-weight: 800; color: white; }
         .btn-close { background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer; }
-
         .input-group { margin-bottom: 15px; }
         .input-label { display: block; color: #94a3b8; font-size: 0.8rem; margin-bottom: 5px; }
-        .input-field {
-            width: 100%; padding: 14px; background: #0f172a; border: 1px solid #334155;
-            border-radius: 12px; color: white; font-family: inherit; box-sizing: border-box;
-        }
-        
+        .input-field { width: 100%; padding: 14px; background: #0f172a; border: 1px solid #334155; border-radius: 12px; color: white; font-family: inherit; box-sizing: border-box; }
         .section-title { color: var(--accent); font-weight: 800; margin: 25px 0 10px 0; font-size: 0.9rem; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; }
-
-        .btn-save {
-            width: 100%; padding: 15px; background: white; color: black;
-            border: none; border-radius: 12px; font-weight: 800; margin-top: 20px; cursor: pointer;
-        }
-        
-        .edit-mode-indicator {
-            position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
-            background: var(--accent); color: black; padding: 10px 20px;
-            border-radius: 30px; font-weight: 800; font-size: 0.8rem;
-            z-index: 1000; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        }
-
-        /* --- STYLES SWITCH TOGGLE (NOUVEAU) --- */
+        .btn-save { width: 100%; padding: 15px; background: white; color: black; border: none; border-radius: 12px; font-weight: 800; margin-top: 20px; cursor: pointer; }
+        .edit-mode-indicator { position: absolute; top: 80px; left: 50%; transform: translateX(-50%); background: var(--accent); color: black; padding: 10px 20px; border-radius: 30px; font-weight: 800; font-size: 0.8rem; z-index: 1000; display: none; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
         .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
         .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; -webkit-transition: .4s; transition: .4s; border-radius: 34px; }
-        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; -webkit-transition: .4s; transition: .4s; border-radius: 50%; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
         input:checked + .slider { background-color: var(--accent); }
-        input:checked + .slider:before { -webkit-transform: translateX(24px); -ms-transform: translateX(24px); transform: translateX(24px); }
+        input:checked + .slider:before { transform: translateX(24px); }
+
+        /* --- STYLES TARIFS MULTIPLES --- */
+        .tarif-row { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+        .tarif-dest { flex: 2; }
+        .tarif-price { flex: 1; }
+        .btn-remove-tarif { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid #ef4444; border-radius: 8px; width: 40px; height: 45px; display: flex; justify-content: center; align-items: center; cursor: pointer; }
+        .btn-add-tarif { background: rgba(255,255,255,0.1); border: 1px dashed #64748b; color: var(--accent); width: 100%; padding: 10px; border-radius: 12px; cursor: pointer; font-weight: 700; margin-bottom: 15px; }
+        .section-separator { display: flex; align-items: center; gap: 10px; margin: 15px 0; color: #94a3b8; font-size: 0.8rem; text-transform: uppercase; font-weight: 700; }
+        .section-separator::before, .section-separator::after { content: ""; flex: 1; height: 1px; background: #334155; }
     </style>
 </head>
 <body>
@@ -123,7 +61,8 @@
 
     <div class="top-bar">
         <div class="profile-btn" onclick="toggleProfile()">
-            <i class="fas fa-cog"></i> </div>
+            <i class="fas fa-cog"></i> 
+        </div>
         <div class="status-badge">
             <div class="status-dot" id="statusDot"></div>
             <span id="statusText">HORS LIGNE</span>
@@ -145,7 +84,8 @@
                 <button class="btn-close" onclick="toggleProfile()"><i class="fas fa-times"></i></button>
             </div>
 
-            <div class="section-title"><i class="fas fa-ticket-alt"></i> Vente de Tickets</div>
+            <div class="section-title"><i class="fas fa-ticket-alt"></i> Mes Tarifs</div>
+            
             <div class="input-group" style="display:flex; justify-content:space-between; align-items:center; background:#0f172a; padding:15px; border-radius:12px; border:1px solid #334155;">
                 <label class="input-label" style="margin:0; font-weight:bold; color:white;">Activer la vente</label>
                 <label class="switch">
@@ -153,10 +93,16 @@
                     <span class="slider round"></span>
                 </label>
             </div>
-            <div class="input-group">
-                <label class="input-label">Prix du Ticket (DA)</label>
-                <input type="number" class="input-field" id="pTicketPrice" placeholder="ex: 100">
-            </div>
+
+            <div class="section-separator">Aller</div>
+            <div id="tarifsContainerAller">
+                </div>
+            <button class="btn-add-tarif" onclick="ajouterLigneTarif('Aller')"><i class="fas fa-plus"></i> Ajouter une destination</button>
+
+            <div class="section-separator">Retour</div>
+            <div id="tarifsContainerRetour">
+                </div>
+            <button class="btn-add-tarif" onclick="ajouterLigneTarif('Retour')"><i class="fas fa-plus"></i> Ajouter une destination</button>
 
             <div class="section-title">Informations</div>
             <div class="input-group">
@@ -173,9 +119,6 @@
             </div>
 
             <div class="section-title">Réglages de la Ligne</div>
-            <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:15px;">
-                Modifiez ici le nom des villes ou ajustez les points GPS exacts sur la carte.
-            </p>
             <div class="input-group">
                 <label class="input-label">Ville Départ</label>
                 <input type="text" class="input-field" id="pVdep">
@@ -205,50 +148,88 @@
         let map, userMarker;
         let watchId = null;
         let isOnline = false;
-
-        // Marqueurs Ligne
         let markerDep, markerArr;
         let isEditingMap = false;
-        
-        // --- COUCHE DU TRACÉ DE LA ROUTE ---
         let routeLayer = null; 
 
-        // --- GESTION DES VOYAGEURS (VIOLET) ---
+        // --- GESTION DES VOYAGEURS ---
         const iconClient = L.divIcon({
             className: 'passenger-marker',
             html: `<div style="background-color: #a855f7; width:30px; height:30px; border-radius:50%; border:2px solid white; display:flex; justify-content:center; align-items:center; box-shadow: 0 0 10px #a855f7;"><i class="fas fa-user" style="color:white; font-size:14px;"></i></div>`,
-            iconSize: [30, 30],
-            iconAnchor: [15, 15],
-            popupAnchor: [0, -20]
+            iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -20]
         });
         let clientMarkers = []; 
 
         function init() {
-            // Remplir le formulaire
+            // Remplir infos de base
             document.getElementById('pName').value = session.user.nom_complet || '';
             document.getElementById('pModele').value = session.user.modele_vehicule || '';
             document.getElementById('pMatricule').value = session.user.matricule_vehicule || '';
             document.getElementById('pVdep').value = session.user.ville_depart || '';
             document.getElementById('pVarr').value = session.user.ville_arrivee || '';
-            
-            // --- REMPLISSAGE INFOS TICKET (NOUVEAU) ---
             document.getElementById('pTicketActive').checked = session.user.ticket_actif || false;
-            document.getElementById('pTicketPrice').value = session.user.ticket_prix || 100;
 
-            // Carte centrée sur Tizi par défaut ou dernière pos
+            // --- CHARGER LES TARIFS ---
+            const tarifs = session.user.tarifs || [];
+            // Si c'est vide ou pas encore au nouveau format, on peut initier par défaut
+            chargerTarifsUI(tarifs);
+
             const startLat = session.user.dep_lat || 36.72;
             const startLon = session.user.dep_lon || 4.05;
-            
             map = L.map('map', { zoomControl: false }).setView([startLat, startLon], 13);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
             chargerLigneSurCarte();
         }
 
+        // --- LOGIQUE TARIFS MULTIPLES ---
+        function chargerTarifsUI(tarifs) {
+            document.getElementById('tarifsContainerAller').innerHTML = '';
+            document.getElementById('tarifsContainerRetour').innerHTML = '';
+            
+            tarifs.forEach(t => {
+                creerLigneTarifDOM(t.type, t.dest, t.prix);
+            });
+        }
+
+        function ajouterLigneTarif(type) {
+            creerLigneTarifDOM(type, '', '');
+        }
+
+        function creerLigneTarifDOM(type, destVal, prixVal) {
+            const container = document.getElementById(type === 'Aller' ? 'tarifsContainerAller' : 'tarifsContainerRetour');
+            const div = document.createElement('div');
+            div.className = 'tarif-row';
+            div.dataset.type = type; // Pour récupérer plus tard
+            div.innerHTML = `
+                <input type="text" class="input-field tarif-dest" placeholder="Destination (ex: Alger)" value="${destVal}">
+                <input type="number" class="input-field tarif-price" placeholder="Prix" value="${prixVal}">
+                <div class="btn-remove-tarif" onclick="this.parentElement.remove()"><i class="fas fa-trash"></i></div>
+            `;
+            container.appendChild(div);
+        }
+
+        function recupererTarifsDepuisUI() {
+            const tarifs = [];
+            // Aller
+            document.querySelectorAll('#tarifsContainerAller .tarif-row').forEach(row => {
+                const dest = row.querySelector('.tarif-dest').value;
+                const prix = row.querySelector('.tarif-price').value;
+                if(dest && prix) tarifs.push({ type: 'Aller', dest: dest, prix: prix });
+            });
+            // Retour
+            document.querySelectorAll('#tarifsContainerRetour .tarif-row').forEach(row => {
+                const dest = row.querySelector('.tarif-dest').value;
+                const prix = row.querySelector('.tarif-price').value;
+                if(dest && prix) tarifs.push({ type: 'Retour', dest: dest, prix: prix });
+            });
+            return tarifs;
+        }
+
+        // --- FONCTIONS EXISTANTES ---
         function chargerLigneSurCarte() {
             const iconDep = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', iconSize: [25, 41], iconAnchor: [12, 41] });
             const iconArr = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', iconSize: [25, 41], iconAnchor: [12, 41] });
-
             if(session.user.dep_lat) {
                 if(markerDep) map.removeLayer(markerDep);
                 markerDep = L.marker([session.user.dep_lat, session.user.dep_lon], {icon: iconDep, draggable: false}).addTo(map);
@@ -261,39 +242,26 @@
 
         async function updateDynamicRoute(currentLat, currentLon, directionName) {
             if (!session.user.dep_lat || !session.user.arr_lat) return;
-
             let targetLat, targetLon;
             const dir = (directionName || "").toLowerCase();
             const vArr = (session.user.ville_arrivee || "").toLowerCase();
-
-            if (dir.includes(vArr)) {
-                targetLat = session.user.arr_lat; targetLon = session.user.arr_lon;
-            } else {
-                targetLat = session.user.dep_lat; targetLon = session.user.dep_lon;
-            }
-
-            const start = `${currentLon},${currentLat}`;
-            const end = `${targetLon},${targetLat}`;
+            if (dir.includes(vArr)) { targetLat = session.user.arr_lat; targetLon = session.user.arr_lon; } 
+            else { targetLat = session.user.dep_lat; targetLon = session.user.dep_lon; }
+            const start = `${currentLon},${currentLat}`; const end = `${targetLon},${targetLat}`;
             const url = `https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson`;
-
             try {
-                const res = await fetch(url);
-                const data = await res.json();
+                const res = await fetch(url); const data = await res.json();
                 if (data.routes && data.routes.length > 0) {
                     if (routeLayer) map.removeLayer(routeLayer);
-                    routeLayer = L.geoJSON(data.routes[0].geometry, { 
-                        style: { color: "#d4fb79", weight: 6, opacity: 0.8 } 
-                    }).addTo(map);
+                    routeLayer = L.geoJSON(data.routes[0].geometry, { style: { color: "#d4fb79", weight: 6, opacity: 0.8 } }).addTo(map);
                 }
             } catch (e) { console.error("Erreur tracé dynamique:", e); }
         }
 
         function activerModeEdition() {
-            toggleProfile();
-            isEditingMap = true;
+            toggleProfile(); isEditingMap = true;
             document.getElementById('editIndicator').style.display = 'block';
-            if(markerDep) markerDep.dragging.enable();
-            if(markerArr) markerArr.dragging.enable();
+            if(markerDep) markerDep.dragging.enable(); if(markerArr) markerArr.dragging.enable();
             const center = map.getCenter();
             if(!markerDep) {
                 const iconDep = L.icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', iconSize: [25, 41], iconAnchor: [12, 41] });
@@ -307,6 +275,9 @@
         }
 
         async function sauvegarderProfil() {
+            // Récupérer les tarifs multiples
+            const tarifsList = recupererTarifsDepuisUI();
+
             const data = {
                 id: session.user.id,
                 nom_complet: document.getElementById('pName').value,
@@ -314,18 +285,12 @@
                 matricule_vehicule: document.getElementById('pMatricule').value,
                 ville_depart: document.getElementById('pVdep').value,
                 ville_arrivee: document.getElementById('pVarr').value,
-                // --- SAUVEGARDE TICKET (NOUVEAU) ---
                 ticket_actif: document.getElementById('pTicketActive').checked,
-                ticket_prix: document.getElementById('pTicketPrice').value
+                tarifs: tarifsList // On envoie la liste JSON
             };
-            if(markerDep) {
-                const pos = markerDep.getLatLng();
-                data.dep_lat = pos.lat; data.dep_lon = pos.lng;
-            }
-            if(markerArr) {
-                const pos = markerArr.getLatLng();
-                data.arr_lat = pos.lat; data.arr_lon = pos.lng;
-            }
+            if(markerDep) { const pos = markerDep.getLatLng(); data.dep_lat = pos.lat; data.dep_lon = pos.lng; }
+            if(markerArr) { const pos = markerArr.getLatLng(); data.arr_lat = pos.lat; data.arr_lon = pos.lng; }
+            
             try {
                 const res = await fetch(SERVER_URL + '/api/update-driver-profile', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -348,68 +313,31 @@
             if(!isOnline) {
                 watchId = navigator.geolocation.watchPosition(
                     pos => {
-                        const lat = pos.coords.latitude;
-                        const lon = pos.coords.longitude;
-
+                        const lat = pos.coords.latitude; const lon = pos.coords.longitude;
                         if(!userMarker) {
-                            const iconArrow = L.divIcon({
-                                className: 'custom-div-icon',
-                                html: `<div style="background:#3b82f6; width:20px; height:20px; border-radius:50%; border:3px solid white; box-shadow:0 0 10px #3b82f6;"></div>`,
-                                iconSize: [20, 20], iconAnchor: [10, 10]
-                            });
-                            userMarker = L.marker([lat, lon], {icon: iconArrow}).addTo(map);
-                            map.setView([lat, lon], 16);
-                        } else {
-                            userMarker.setLatLng([lat, lon]);
-                        }
+                            const iconArrow = L.divIcon({ className: 'custom-div-icon', html: `<div style="background:#3b82f6; width:20px; height:20px; border-radius:50%; border:3px solid white; box-shadow:0 0 10px #3b82f6;"></div>`, iconSize: [20, 20], iconAnchor: [10, 10] });
+                            userMarker = L.marker([lat, lon], {icon: iconArrow}).addTo(map); map.setView([lat, lon], 16);
+                        } else { userMarker.setLatLng([lat, lon]); }
 
-                        fetch(SERVER_URL + '/api/update-position', {
-                            method: 'POST', headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({ id: session.user.id, lat: lat, lon: lon })
-                        })
+                        fetch(SERVER_URL + '/api/update-position', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: session.user.id, lat: lat, lon: lon }) })
                         .then(r => r.json())
                         .then(data => {
                             updateDynamicRoute(lat, lon, data.direction);
                             if(data.voyageurs) {
-                                clientMarkers.forEach(m => map.removeLayer(m));
-                                clientMarkers = [];
-                                data.voyageurs.forEach(v => {
-                                    const m = L.marker([v.lat, v.lon], {icon: iconClient}).addTo(map).bindPopup('<div style="color:black; font-weight:bold;">Voyageur</div>');
-                                    clientMarkers.push(m);
-                                });
-                                if(data.voyageurs.length > 0) statusText.innerText = `EN LIGNE (${data.voyageurs.length})`;
-                                else statusText.innerText = "EN LIGNE";
+                                clientMarkers.forEach(m => map.removeLayer(m)); clientMarkers = [];
+                                data.voyageurs.forEach(v => { const m = L.marker([v.lat, v.lon], {icon: iconClient}).addTo(map).bindPopup('<div style="color:black; font-weight:bold;">Voyageur</div>'); clientMarkers.push(m); });
+                                if(data.voyageurs.length > 0) statusText.innerText = `EN LIGNE (${data.voyageurs.length})`; else statusText.innerText = "EN LIGNE";
                             }
-                        })
-                        .catch(e => console.log("Erreur envoi pos"));
+                        }).catch(e => console.log("Erreur envoi pos"));
                     },
-                    err => alert("Activez votre GPS !"),
-                    { enableHighAccuracy: true }
+                    err => alert("Activez votre GPS !"), { enableHighAccuracy: true }
                 );
-
-                isOnline = true;
-                btn.innerText = "STOP";
-                btn.classList.add('offline');
-                statusText.innerText = "EN LIGNE";
-                statusDot.classList.add('active');
-
+                isOnline = true; btn.innerText = "STOP"; btn.classList.add('offline'); statusText.innerText = "EN LIGNE"; statusDot.classList.add('active');
             } else {
                 navigator.geolocation.clearWatch(watchId);
-                
-                // APPEL API POUR DIRE AU SERVEUR QU'ON ARRETE
-                fetch(SERVER_URL + '/api/stop-driving', {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ id: session.user.id })
-                });
-
-                isOnline = false;
-                btn.innerText = "GO";
-                btn.classList.remove('offline');
-                statusText.innerText = "HORS LIGNE";
-                statusDot.classList.remove('active');
-                clientMarkers.forEach(m => map.removeLayer(m));
-                clientMarkers = [];
-                if(routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
+                fetch(SERVER_URL + '/api/stop-driving', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ id: session.user.id }) });
+                isOnline = false; btn.innerText = "GO"; btn.classList.remove('offline'); statusText.innerText = "HORS LIGNE"; statusDot.classList.remove('active');
+                clientMarkers.forEach(m => map.removeLayer(m)); clientMarkers = []; if(routeLayer) { map.removeLayer(routeLayer); routeLayer = null; }
             }
         }
 

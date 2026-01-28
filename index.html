@@ -24,12 +24,13 @@
             --text-muted: #9ca3af;
             --danger: #ef4444;
             --success: #10b981;
+            --gold: #f59e0b;         /* Couleur Ticket */
             --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         }
 
         body { 
             margin: 0; 
-            font-family: 'Plus Jakarta Sans', sans-serif; /* Police plus tech */
+            font-family: 'Plus Jakarta Sans', sans-serif; 
             background: var(--bg-body); 
             overflow: hidden; 
             color: var(--text-main);
@@ -109,12 +110,12 @@
             position: absolute; bottom: 0; left: 0; width: 100%; height: auto; 
             z-index: 2000; 
             display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; 
-            pointer-events: none; /* Laisse passer les clics sur la carte au dessus */
+            pointer-events: none; 
         }
         
         .search-card { 
             pointer-events: auto;
-            background: rgba(15, 15, 20, 0.85); /* Plus opaque */
+            background: rgba(15, 15, 20, 0.85); 
             backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             padding: 25px; 
             border-radius: 30px; 
@@ -213,17 +214,21 @@
         .sheet-title { font-weight: 800; color: var(--accent); font-size: 0.9rem; letter-spacing: 2px; }
 
         .bus-item { 
-            display: flex; align-items: center; padding: 16px; 
+            display: flex; flex-direction: column; /* Changé pour accomoder le bouton */
+            padding: 16px; 
             background: rgba(255,255,255,0.03); border-radius: 20px; 
             margin-bottom: 12px; cursor: pointer; border: 1px solid transparent; transition: 0.2s; 
         }
         .bus-item:active { border-color: var(--accent); background: rgba(6, 182, 212, 0.05); }
+        
+        .bus-row-main { display: flex; align-items: center; width: 100%; } /* Ligne principale */
+        
         .bus-info { flex: 1; margin-left: 15px; }
         .bus-name { color: var(--text-main); font-weight: 800; font-size: 1.1rem; }
         .bus-meta { color: var(--text-muted); font-size: 0.85rem; font-weight: 500; margin-top:2px;}
         .bus-matricule { background: rgba(255,255,255,0.1); padding: 3px 8px; border-radius: 6px; color: var(--text-main); font-size: 0.75rem; font-family: monospace; letter-spacing: 1px; margin-left: 8px;}
         
-        /* Bouton Flottant "Recherche" quand fermé */
+        /* Bouton Flottant "Recherche" */
         .fab-search {
             position: absolute; bottom: 30px; right: 20px;
             width: 60px; height: 60px;
@@ -336,46 +341,34 @@
         let isTraveling = false;
 
         const session = JSON.parse(localStorage.getItem('user_session'));
-        // if(session && session.user.nom_complet) document.getElementById('txtName').innerText = session.user.nom_complet.split(' ')[0];
-
-        // --- 2. CARTE "DARK MATTER" (STYLE NOCTURNE PRO) ---
+        
+        // --- 2. CARTE "DARK MATTER" ---
         function initMap() {
             map = L.map('map', { zoomControl: false, fadeAnimation: true }).setView([36.72, 4.05], 13);
-            
-            // Fond sombre CartoDB Dark Matter (Très propre)
             const themeUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-            
             tileLayer = L.tileLayer(themeUrl, {
-                detectRetina: true, 
-                maxZoom: 20,
-                keepBuffer: 10, 
-                updateWhenIdle: false, 
-                attribution: ''
+                detectRetina: true, maxZoom: 20, keepBuffer: 10, updateWhenIdle: false, attribution: ''
             }).addTo(map);
         }
         initMap();
 
-        // --- 3. LOGIQUE UI ET ANIMATION ---
+        // --- 3. LOGIQUE UI ---
         function toggleSearch() { 
             const card = document.querySelector('.search-card');
             const fab = document.getElementById('fabSearch');
-            
             if(card.classList.contains('active')) {
                 card.classList.remove('active');
-                fab.style.display = 'flex'; // Afficher le bouton flottant
+                fab.style.display = 'flex'; 
             } else {
                 card.classList.add('active');
-                fab.style.display = 'none'; // Cacher le bouton flottant
+                fab.style.display = 'none'; 
                 document.getElementById('resultsSheet').classList.remove('active');
             }
         }
-        
-        // Initial state
         document.querySelector('.search-card').classList.add('active');
 
         function fermerResultats() { 
             document.getElementById('resultsSheet').classList.remove('active');
-            // Réouvrir la recherche si on ferme les résultats
             setTimeout(() => { document.querySelector('.search-card').classList.add('active'); }, 300);
         }
 
@@ -490,12 +483,12 @@
             document.querySelectorAll('.leaflet-marker-icon .terminus-flag').forEach(el => el.parentElement.remove());
             if(!dep && !arr) return alert("Remplissez au moins une ville !");
             
-            isTraveling = false; // Reset statut voyage
+            isTraveling = false; 
             
             rechercheActive = true;
-            document.querySelector('.search-card').classList.remove('active'); // Fermer recherche
-            document.getElementById('fabSearch').style.display = 'flex'; // Afficher bouton
-            document.getElementById('resultsSheet').classList.add('active'); // Ouvrir résultats
+            document.querySelector('.search-card').classList.remove('active'); 
+            document.getElementById('fabSearch').style.display = 'flex'; 
+            document.getElementById('resultsSheet').classList.add('active'); 
             document.getElementById('busList').innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-muted);"><i class="fas fa-satellite-dish fa-spin fa-2x"></i><br><br>Recherche de Shuttl...</div>';
             fetchBus();
         }
@@ -509,11 +502,16 @@
                 const res = await fetch(url); const data = await res.json();
                 if (data.routes && data.routes.length > 0) {
                     currentRouteLayer = L.geoJSON(data.routes[0].geometry, { 
-                        style: { color: "#3b82f6", weight: 6, opacity: 0.9, lineCap: 'round' } // Ligne bleue pro
+                        style: { color: "#3b82f6", weight: 6, opacity: 0.9, lineCap: 'round' } 
                     }).addTo(map);
                     map.fitBounds(currentRouteLayer.getBounds(), { padding: [50, 50] });
                 }
             } catch (e) { console.error("Erreur trajet:", e); }
+        }
+
+        // --- 7. ACHAT TICKET (NOUVEAU) ---
+        function acheterTicket(chauffeur, prix) {
+            alert(`🎟️ TICKET RÉSERVÉ !\n\n🚍 Bus : ${chauffeur}\n💰 Prix : ${prix} DA\n\nMontrez cet écran au chauffeur en montant.`);
         }
 
         async function fetchBus() {
@@ -559,22 +557,36 @@
                             map.setView([bus.current_lat, bus.current_lon], 16); m.openPopup(); afficherTrajet(bus);
                         }
 
+                        // PRÉPARATION BOUTON TICKET
+                        let ticketHtml = '';
+                        if (bus.ticket_actif) {
+                            ticketHtml = `
+                                <button onclick="event.stopPropagation(); acheterTicket('${bus.chauffeur}', '${bus.ticket_prix}')" 
+                                        style="margin-top:12px; width:100%; background: linear-gradient(135deg, #f59e0b, #d97706); border:none; padding:12px; border-radius:12px; color:white; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:8px; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3); transition:0.2s;">
+                                    <i class="fas fa-ticket-alt"></i> Acheter Ticket (${bus.ticket_prix} DA)
+                                </button>
+                            `;
+                        }
+
                         const div = document.createElement('div');
                         div.className = 'bus-item';
                         div.innerHTML = `
-                            <div style="background:rgba(255,255,255,0.1); width:45px; height:45px; border-radius:12px; display:flex; justify-content:center; align-items:center;">
-                                <i class="fas fa-bus" style="color:var(--accent); font-size:1.2rem;"></i>
-                            </div>
-                            <div class="bus-info">
-                                <div class="bus-name">${bus.chauffeur}</div>
-                                <div class="bus-meta">${bus.modele} <span class="bus-matricule">${bus.matricule}</span></div>
-                                <div class="bus-sub" style="color:var(--accent); font-weight:bold; margin-top:4px;">
-                                    <i class="fas fa-bolt"></i> ${bus.eta || '?'} min <span style="color:var(--text-muted); font-weight:normal; margin-left:5px;">(${bus.distance_km} km)</span>
+                            <div class="bus-row-main">
+                                <div style="background:rgba(255,255,255,0.1); width:45px; height:45px; border-radius:12px; display:flex; justify-content:center; align-items:center;">
+                                    <i class="fas fa-bus" style="color:var(--accent); font-size:1.2rem;"></i>
                                 </div>
+                                <div class="bus-info">
+                                    <div class="bus-name">${bus.chauffeur}</div>
+                                    <div class="bus-meta">${bus.modele} <span class="bus-matricule">${bus.matricule}</span></div>
+                                    <div class="bus-sub" style="color:var(--accent); font-weight:bold; margin-top:4px;">
+                                        <i class="fas fa-bolt"></i> ${bus.eta || '?'} min <span style="color:var(--text-muted); font-weight:normal; margin-left:5px;">(${bus.distance_km} km)</span>
+                                    </div>
+                                </div>
+                                <button class="btn-share" onclick="event.stopPropagation(); shareBus('${bus.bus_id}', '${bus.chauffeur}')">
+                                    <i class="fas fa-share" style="color:white;"></i>
+                                </button>
                             </div>
-                            <button class="btn-share" onclick="event.stopPropagation(); shareBus('${bus.bus_id}', '${bus.chauffeur}')">
-                                <i class="fas fa-share" style="color:white;"></i>
-                            </button>
+                            ${ticketHtml}
                         `;
                         div.onclick = () => { afficherTrajet(bus); map.setView([bus.current_lat, bus.current_lon], 16); m.openPopup(); };
                         container.appendChild(div);

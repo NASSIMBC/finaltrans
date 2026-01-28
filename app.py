@@ -17,7 +17,7 @@ CORS(app)
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-# Nettoyage des clés
+# Nettoyage des clés (au cas où il y a des guillemets dans le .env)
 if SUPABASE_URL: 
     SUPABASE_URL = SUPABASE_URL.strip().strip("'").strip('"')
 if SUPABASE_KEY: 
@@ -72,7 +72,7 @@ def page_chauffeur(): return send_from_directory('.', 'chauffeur.html')
 @app.route('/<path:path>')
 def static_file(path): return send_from_directory('.', path)
 
-# --- API 1 : INSCRIPTION (AVEC GPS) ---
+# --- API 1 : INSCRIPTION ---
 @app.route('/api/register', methods=['POST'])
 def register():
     data = request.json
@@ -160,7 +160,6 @@ def update_position():
             dist_to_dep = haversine(lat, lon, coord_dep['lat'], coord_dep['lon'])
             dist_to_arr = haversine(lat, lon, coord_arr['lat'], coord_arr['lon'])
 
-            # Arrêt automatique si proche du terminus (< 300m)
             if dist_to_arr < 0.3:
                 supabase.table('active_trips').delete().eq('chauffeur_id', driver_id).execute()
                 return jsonify({
@@ -206,7 +205,7 @@ def update_position():
         
     except Exception as e: return jsonify({"error": str(e)}), 500
 
-# ROUTE STOP
+# --- ROUTE STOP ---
 @app.route('/api/stop-driving', methods=['POST'])
 def stop_driving():
     data = request.json
@@ -217,13 +216,13 @@ def stop_driving():
     except Exception as e:
         return jsonify({'status': 'error', 'error': str(e)}), 500
 
-# Routes statiques
+# --- ROUTES STATIQUES ---
 @app.route('/manifest.json')
 def serve_manifest(): return send_from_directory('.', 'manifest.json')
 @app.route('/sw.js')
 def serve_sw(): return send_from_directory('.', 'sw.js')
 
-# --- API 4 : TROUVER BUS ---
+# --- API 4 : TROUVER BUS (VERSION TARIFS MULTIPLES) ---
 @app.route('/api/trouver-bus', methods=['POST'])
 def api_trouver_bus():
     data = request.json
@@ -251,7 +250,7 @@ def api_trouver_bus():
         except Exception as e: print(f"⚠️ Erreur: {e}")
 
     try:
-        # Timeout 45 secondes pour considérer un bus comme hors ligne
+        # Timeout 45 secondes
         timeout_limit = (datetime.datetime.utcnow() - datetime.timedelta(seconds=45)).isoformat()
         active_trips = supabase.table('active_trips').select('*').gt('last_update', timeout_limit).execute().data
         bus_proches = []
@@ -338,7 +337,8 @@ def api_trouver_bus():
                 'ligne_start': coord_dep_ligne,
                 'ligne_end': coord_arr_ligne,
                 'ticket_actif': driver.get('ticket_actif', False),
-                'ticket_prix': driver.get('ticket_prix', 0)
+                # IMPORTANT : On renvoie la liste complète des tarifs
+                'tarifs': driver.get('tarifs', [])
             })
 
         bus_proches.sort(key=lambda x: x['distance_km'])
@@ -348,7 +348,7 @@ def api_trouver_bus():
         print(f"🔴 ERREUR: {e}")
         return jsonify({"bus_proches": []})
 
-# --- API 5 : UPDATE PROFILE ---
+# --- API 5 : UPDATE PROFILE (VERSION TARIFS MULTIPLES) ---
 @app.route('/api/update-driver-profile', methods=['POST'])
 def update_driver_profile():
     data = request.json
@@ -368,7 +368,9 @@ def update_driver_profile():
         if data.get('arr_lon'): update_data['arr_lon'] = data.get('arr_lon')
 
         if 'ticket_actif' in data: update_data['ticket_actif'] = data.get('ticket_actif')
-        if 'ticket_prix' in data: update_data['ticket_prix'] = data.get('ticket_prix')
+        
+        # IMPORTANT : On sauvegarde la liste de tarifs JSON
+        if 'tarifs' in data: update_data['tarifs'] = data.get('tarifs')
 
         supabase.table('drivers').update(update_data).eq('id', uid).execute()
         return jsonify({"status": "success"})
@@ -413,8 +415,7 @@ def get_transport_news():
         print(f"Erreur News: {e}")
         return jsonify([])
 
-# --- POINT D'ENTRÉE (CORRECTIF RENDER) ---
+# --- POINT D'ENTRÉE RENDER ---
 if __name__ == '__main__':
-    # Utilisation du port d'environnement ou 5000 par défaut
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)

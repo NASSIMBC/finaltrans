@@ -16,8 +16,12 @@ CORS(app)
 # Récupération des clés
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-if SUPABASE_URL: SUPABASE_URL = SUPABASE_URL.strip().strip("'").strip('"')
-if SUPABASE_KEY: SUPABASE_KEY = SUPABASE_KEY.strip().strip("'").strip('"')
+
+# Nettoyage des clés (au cas où il y a des guillemets dans le .env)
+if SUPABASE_URL: 
+    SUPABASE_URL = SUPABASE_URL.strip().strip("'").strip('"')
+if SUPABASE_KEY: 
+    SUPABASE_KEY = SUPABASE_KEY.strip().strip("'").strip('"')
 
 # Connexion Supabase
 if not SUPABASE_URL or not SUPABASE_KEY:
@@ -369,7 +373,7 @@ def update_driver_profile():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# --- API 6 : NEWS ALGERIE (NOUVEAU) ---
+# --- API 6 : NEWS ALGERIE ---
 @app.route('/api/news', methods=['GET'])
 def get_transport_news():
     # Sources d'info fiables en Algérie

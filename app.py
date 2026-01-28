@@ -17,7 +17,7 @@ CORS(app)
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-# Nettoyage des clés (au cas où il y a des guillemets dans le .env)
+# Nettoyage des clés
 if SUPABASE_URL: 
     SUPABASE_URL = SUPABASE_URL.strip().strip("'").strip('"')
 if SUPABASE_KEY: 
@@ -222,7 +222,7 @@ def serve_manifest(): return send_from_directory('.', 'manifest.json')
 @app.route('/sw.js')
 def serve_sw(): return send_from_directory('.', 'sw.js')
 
-# --- API 4 : TROUVER BUS (VERSION TARIFS MULTIPLES) ---
+# --- API 4 : TROUVER BUS ---
 @app.route('/api/trouver-bus', methods=['POST'])
 def api_trouver_bus():
     data = request.json
@@ -250,7 +250,6 @@ def api_trouver_bus():
         except Exception as e: print(f"⚠️ Erreur: {e}")
 
     try:
-        # Timeout 45 secondes
         timeout_limit = (datetime.datetime.utcnow() - datetime.timedelta(seconds=45)).isoformat()
         active_trips = supabase.table('active_trips').select('*').gt('last_update', timeout_limit).execute().data
         bus_proches = []
@@ -337,7 +336,6 @@ def api_trouver_bus():
                 'ligne_start': coord_dep_ligne,
                 'ligne_end': coord_arr_ligne,
                 'ticket_actif': driver.get('ticket_actif', False),
-                # IMPORTANT : On renvoie la liste complète des tarifs
                 'tarifs': driver.get('tarifs', [])
             })
 
@@ -348,7 +346,7 @@ def api_trouver_bus():
         print(f"🔴 ERREUR: {e}")
         return jsonify({"bus_proches": []})
 
-# --- API 5 : UPDATE PROFILE (VERSION TARIFS MULTIPLES) ---
+# --- API 5 : UPDATE PROFILE ---
 @app.route('/api/update-driver-profile', methods=['POST'])
 def update_driver_profile():
     data = request.json
@@ -368,8 +366,6 @@ def update_driver_profile():
         if data.get('arr_lon'): update_data['arr_lon'] = data.get('arr_lon')
 
         if 'ticket_actif' in data: update_data['ticket_actif'] = data.get('ticket_actif')
-        
-        # IMPORTANT : On sauvegarde la liste de tarifs JSON
         if 'tarifs' in data: update_data['tarifs'] = data.get('tarifs')
 
         supabase.table('drivers').update(update_data).eq('id', uid).execute()
@@ -415,7 +411,30 @@ def get_transport_news():
         print(f"Erreur News: {e}")
         return jsonify([])
 
-# --- POINT D'ENTRÉE RENDER ---
+# --- API 7 : SIGNALEMENTS (WAZE-LIKE) ---
+@app.route('/api/report-event', methods=['POST'])
+def report_event():
+    data = request.json
+    try:
+        supabase.table('road_events').insert({
+            'type': data.get('type'),
+            'lat': data.get('lat'),
+            'lon': data.get('lon'),
+            'reported_by': data.get('user_id')
+        }).execute()
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/get-events', methods=['GET'])
+def get_events():
+    try:
+        two_hours_ago = (datetime.datetime.utcnow() - datetime.timedelta(hours=2)).isoformat()
+        events = supabase.table('road_events').select('*').gt('created_at', two_hours_ago).execute().data
+        return jsonify(events)
+    except Exception as e:
+        return jsonify([])
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)

@@ -218,7 +218,7 @@ def serve_manifest(): return send_from_directory('.', 'manifest.json')
 @app.route('/sw.js')
 def serve_sw(): return send_from_directory('.', 'sw.js')
 
-# --- API 4 : TROUVER BUS (MODIFIÉ POUR ACTUALISATION RAPIDE) ---
+# --- API 4 : TROUVER BUS (MODIFIÉ POUR TICKETS) ---
 @app.route('/api/trouver-bus', methods=['POST'])
 def api_trouver_bus():
     data = request.json
@@ -246,8 +246,7 @@ def api_trouver_bus():
         except Exception as e: print(f"⚠️ Erreur: {e}")
 
     try:
-        # 🟢 MODIFICATION : ON NE GARDE QUE LES BUS ACTIFS DEPUIS 45 SECONDES
-        # Si le bus n'a pas donné signe de vie depuis 45s, on le considère hors ligne
+        # ON NE GARDE QUE LES BUS ACTIFS DEPUIS 45 SECONDES
         timeout_limit = (datetime.datetime.utcnow() - datetime.timedelta(seconds=45)).isoformat()
 
         active_trips = supabase.table('active_trips').select('*').gt('last_update', timeout_limit).execute().data
@@ -334,7 +333,10 @@ def api_trouver_bus():
                 'direction': direction_reelle,
                 'terminus_officiel': coord_arr_ligne, 
                 'ligne_start': coord_dep_ligne,
-                'ligne_end': coord_arr_ligne
+                'ligne_end': coord_arr_ligne,
+                # --- INFO TICKET AJOUTÉE ---
+                'ticket_actif': driver.get('ticket_actif', False),
+                'ticket_prix': driver.get('ticket_prix', 0)
             })
 
         bus_proches.sort(key=lambda x: x['distance_km'])
@@ -344,7 +346,7 @@ def api_trouver_bus():
         print(f"🔴 ERREUR: {e}")
         return jsonify({"bus_proches": []})
 
-# --- API 5 : UPDATE PROFILE ---
+# --- API 5 : UPDATE PROFILE (MODIFIÉ POUR TICKET) ---
 @app.route('/api/update-driver-profile', methods=['POST'])
 def update_driver_profile():
     data = request.json
@@ -357,10 +359,16 @@ def update_driver_profile():
             'ville_depart': data.get('ville_depart', '').lower().strip(),
             'ville_arrivee': data.get('ville_arrivee', '').lower().strip(),
         }
+        
+        # Coordonnées
         if data.get('dep_lat'): update_data['dep_lat'] = data.get('dep_lat')
         if data.get('dep_lon'): update_data['dep_lon'] = data.get('dep_lon')
         if data.get('arr_lat'): update_data['arr_lat'] = data.get('arr_lat')
         if data.get('arr_lon'): update_data['arr_lon'] = data.get('arr_lon')
+
+        # --- GESTION TICKET ---
+        if 'ticket_actif' in data: update_data['ticket_actif'] = data.get('ticket_actif')
+        if 'ticket_prix' in data: update_data['ticket_prix'] = data.get('ticket_prix')
 
         supabase.table('drivers').update(update_data).eq('id', uid).execute()
         return jsonify({"status": "success"})

@@ -1,168 +1,241 @@
 <!DOCTYPE html>
 <html lang="fr" data-theme="dark">
 <head>
-    <title>Tizi Transport</title>
+    <title>Shuttl</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@500;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
 
     <style>
         :root {
-            --bg-dark: #0f172a;
-            --card-bg: rgba(30, 41, 59, 0.95);
-            --accent: #3b82f6; /* NOUVEAU : Bleu Électrique */
-            --accent-glow: rgba(59, 130, 246, 0.5);
+            /* --- NOUVELLE PALETTE "CYBER-GLASS" --- */
+            --bg-body: #000000;
+            --glass-bg: rgba(20, 20, 20, 0.65); /* Fond transparent sombre */
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --primary: #3b82f6;      /* Bleu Principal */
+            --secondary: #8b5cf6;    /* Violet (Dégradé) */
+            --accent: #06b6d4;       /* Cyan (Lumière) */
             --text-main: #ffffff;
-            --text-muted: #94a3b8;
-            --border: rgba(255,255,255,0.1);
-            --map-tiles: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+            --text-muted: #9ca3af;
+            --danger: #ef4444;
+            --success: #10b981;
+            --shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
         }
 
-        [data-theme="light"] {
-            --bg-dark: #f1f5f9;
-            --card-bg: rgba(255, 255, 255, 0.95);
-            --accent: #2563eb;
-            --accent-glow: rgba(37, 99, 235, 0.3);
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --border: rgba(0,0,0,0.1);
-            --map-tiles: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+        body { 
+            margin: 0; 
+            font-family: 'Plus Jakarta Sans', sans-serif; /* Police plus tech */
+            background: var(--bg-body); 
+            overflow: hidden; 
+            color: var(--text-main);
         }
-
-        body { margin: 0; font-family: 'Urbanist', sans-serif; background: black; overflow: hidden; }
         
-        #map { height: 100vh; width: 100%; z-index: 1; }
+        #map { height: 100vh; width: 100%; z-index: 1; background: #111; }
         .leaflet-control-attribution { display: none; }
 
-        /* --- NOUVEAUX STYLES D'ICÔNES --- */
+        /* --- ANIMATIONS --- */
+        @keyframes float { 0% {transform: translateY(0px);} 50% {transform: translateY(-5px);} 100% {transform: translateY(0px);} }
+        @keyframes pulse-glow { 0% {box-shadow: 0 0 0 0 rgba(6, 182, 212, 0.4);} 70% {box-shadow: 0 0 0 10px rgba(6, 182, 212, 0);} 100% {box-shadow: 0 0 0 0 rgba(6, 182, 212, 0);} }
         
-        /* Icône BUS Moderne */
+        /* --- ICÔNES MODERNES --- */
         .modern-bus-icon {
-            background: linear-gradient(135deg, var(--accent), #1d4ed8);
-            border-radius: 12px;
-            color: white;
-            display: flex; justify-content: center; align-items: center;
-            font-size: 1.2rem;
-            box-shadow: 0 0 15px var(--accent-glow);
-            border: 2px solid white;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-radius: 12px; color: white; display: flex; justify-content: center; align-items: center;
+            font-size: 1.1rem; 
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.6); 
+            border: 2px solid rgba(255,255,255,0.8);
             transition: transform 0.3s;
+            z-index: 1000 !important;
         }
         
-        /* Icône USER Moderne (avec pulsation) */
         .modern-user-icon {
-            background: #10b981; /* Vert Menthe */
+            background: var(--accent);
             border-radius: 50%;
             border: 3px solid white;
-            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+            box-shadow: 0 0 15px var(--accent);
         }
         .pulse-ring {
-            border: 3px solid #10b981;
-            border-radius: 50%;
-            height: 40px; width: 40px;
-            position: absolute; left: -8px; top: -8px;
-            animation: pulsate 2s ease-out;
-            animation-iteration-count: infinite; 
-            opacity: 0.0;
-        }
-        @keyframes pulsate {
-            0% {transform: scale(0.1, 0.1); opacity: 0.0;}
-            50% {opacity: 1.0;}
-            100% {transform: scale(1.2, 1.2); opacity: 0.0;}
+            border: 2px solid var(--accent); border-radius: 50%; height: 50px; width: 50px;
+            position: absolute; left: -13px; top: -13px; animation: pulse-glow 2s infinite; opacity: 0;
         }
 
-        /* Icône ARRÊT DE BUS */
-        .station-icon {
-            background: white; border: 3px solid #64748b;
-            border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        .station-icon { 
+            background: #262626; border: 2px solid #525252; 
+            border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.5); 
         }
 
-        /* --- UI EXISTANTE --- */
-        .top-bar { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; align-items: center; z-index: 1000; pointer-events: none; }
-        .profile-chip { pointer-events: auto; background: var(--card-bg); backdrop-filter: blur(10px); padding: 8px 16px 8px 8px; border-radius: 50px; display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        .profile-img { width: 35px; height: 35px; border-radius: 50%; border: 2px solid var(--accent); }
-        .profile-text { font-size: 0.9rem; color: var(--text-main); font-weight: 700; }
+        /* --- INTERFACE GLASSMORPHISM --- */
+        .top-bar { 
+            position: absolute; top: 0; left: 0; right: 0; 
+            padding: 20px; display: flex; justify-content: space-between; align-items: center; 
+            z-index: 1000; pointer-events: none; 
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+        }
+
+        .profile-chip { 
+            pointer-events: auto; 
+            background: var(--glass-bg); 
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            padding: 6px 16px 6px 6px; 
+            border-radius: 50px; 
+            display: flex; align-items: center; gap: 12px; 
+            border: 1px solid var(--glass-border); 
+            box-shadow: var(--shadow);
+        }
+        .profile-img { width: 38px; height: 38px; border-radius: 50%; border: 2px solid var(--accent); }
+        .profile-text { font-size: 0.95rem; color: var(--text-main); font-weight: 700; letter-spacing: 0.5px; }
         
-        .top-right-group { display: flex; gap: 10px; pointer-events: auto; }
-        .round-btn { width: 45px; height: 45px; background: var(--card-bg); border-radius: 50%; display: flex; justify-content: center; align-items: center; border: 1px solid var(--border); cursor: pointer; color: var(--text-main); backdrop-filter: blur(10px); transition: 0.3s; }
-        .round-btn:active { transform: scale(0.9); }
+        .top-right-group { display: flex; gap: 12px; pointer-events: auto; }
+        .round-btn { 
+            width: 48px; height: 48px; 
+            background: var(--glass-bg); 
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border-radius: 50%; 
+            display: flex; justify-content: center; align-items: center; 
+            border: 1px solid var(--glass-border); 
+            cursor: pointer; color: var(--text-main); 
+            transition: 0.3s; 
+            box-shadow: var(--shadow);
+        }
+        .round-btn:active { transform: scale(0.9); background: rgba(255,255,255,0.1); }
 
-        .search-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-dark); z-index: 2000; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; }
-        .search-overlay.active { transform: translateY(0); }
-        .search-card { background: var(--card-bg); padding: 25px; border-radius: 25px; border: 1px solid var(--border); width: 100%; max-width: 400px; margin: 50px auto 0 auto; box-sizing: border-box; }
-        .card-title { font-size: 1.4rem; font-weight: 800; margin-bottom: 20px; color: var(--text-main); display: flex; justify-content: space-between; align-items: center; }
-        .btn-close { background: none; border: none; color: var(--text-main); font-size: 1.5rem; cursor: pointer; }
-
-        .route-visual { display: flex; gap: 15px; }
-        .dots-col { display: flex; flex-direction: column; align-items: center; padding-top: 15px; }
-        .dot-start { width: 12px; height: 12px; background: var(--accent); border-radius: 50%; }
-        .line { width: 2px; height: 50px; background: var(--text-muted); opacity: 0.3; margin: 5px 0; }
-        .dot-end { width: 12px; height: 12px; border: 2px solid #ef4444; border-radius: 50%; }
+        /* --- RECHERCHE --- */
+        .search-overlay { 
+            position: absolute; bottom: 0; left: 0; width: 100%; height: auto; 
+            z-index: 2000; 
+            display: flex; flex-direction: column; padding: 20px; box-sizing: border-box; 
+            pointer-events: none; /* Laisse passer les clics sur la carte au dessus */
+        }
         
-        .inputs-col { flex: 1; display: flex; flex-direction: column; gap: 15px; position: relative; } 
-        .input-field { width: 100%; padding: 16px; border-radius: 12px; border: none; background: rgba(0,0,0,0.2); color: var(--text-main); font-weight: 600; border: 1px solid var(--border); font-family: 'Urbanist', sans-serif; outline: none; box-sizing: border-box; }
-        [data-theme="light"] .input-field { background: #f8fafc; border: 1px solid #cbd5e1; }
+        .search-card { 
+            pointer-events: auto;
+            background: rgba(15, 15, 20, 0.85); /* Plus opaque */
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            padding: 25px; 
+            border-radius: 30px; 
+            border: 1px solid var(--glass-border); 
+            width: 100%; max-width: 450px; 
+            margin: 0 auto; 
+            box-sizing: border-box; 
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
+            transform: translateY(120%); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .search-card.active { transform: translateY(0); }
 
-        .suggestions-list {
-            position: absolute; left: 0; right: 0; z-index: 100;
-            background: var(--card-bg); border: 1px solid var(--border);
-            border-radius: 12px; max-height: 200px; overflow-y: auto;
-            margin-top: 5px; display: none;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        .card-title { font-size: 1.2rem; font-weight: 800; margin-bottom: 20px; color: var(--text-main); display: flex; justify-content: space-between; align-items: center; text-transform: uppercase; letter-spacing: 1px; }
+        .btn-close { background: rgba(255,255,255,0.1); width:32px; height:32px; border-radius:50%; border: none; color: var(--text-main); font-size: 1rem; cursor: pointer; display:flex; align-items:center; justify-content:center;}
+
+        /* Visualisation Trajet */
+        .route-visual { display: flex; gap: 15px; margin-bottom: 10px; }
+        .dots-col { display: flex; flex-direction: column; align-items: center; padding-top: 18px; }
+        .dot-start { width: 10px; height: 10px; background: var(--accent); border-radius: 50%; box-shadow: 0 0 10px var(--accent); }
+        .line { width: 2px; flex: 1; background: linear-gradient(to bottom, var(--accent), var(--danger)); opacity: 0.5; margin: 5px 0; border-radius: 2px; }
+        .dot-end { width: 10px; height: 10px; background: var(--danger); border-radius: 50%; box-shadow: 0 0 10px var(--danger); }
+        
+        .inputs-col { flex: 1; display: flex; flex-direction: column; gap: 12px; position: relative; } 
+        .input-field { 
+            width: 100%; padding: 16px; 
+            border-radius: 16px; 
+            border: 1px solid rgba(255,255,255,0.1); 
+            background: rgba(0,0,0,0.3); 
+            color: var(--text-main); font-weight: 600; font-family: inherit; 
+            outline: none; box-sizing: border-box; 
+            transition: 0.3s;
+        }
+        .input-field:focus { border-color: var(--accent); background: rgba(0,0,0,0.5); box-shadow: 0 0 15px rgba(6, 182, 212, 0.1); }
+
+        /* Suggestions */
+        .suggestions-list { 
+            position: absolute; left: 0; right: 0; z-index: 100; top: 100%;
+            background: #1a1a1a; border: 1px solid var(--glass-border); 
+            border-radius: 16px; max-height: 200px; overflow-y: auto; 
+            margin-top: 8px; display: none; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
         }
         .suggestions-list.active { display: block; }
-        .suggestion-item { padding: 12px 15px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 0.9rem; color: var(--text-muted); transition: 0.2s; }
-        .suggestion-item:hover { background: rgba(59, 130, 246, 0.1); color: var(--accent); }
-        .suggestion-item strong { color: var(--text-main); }
+        .suggestion-item { padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer; font-size: 0.9rem; color: var(--text-muted); }
+        .suggestion-item:hover { background: rgba(255,255,255,0.05); color: var(--accent); }
+        .suggestion-item strong { color: var(--text-main); display:block; margin-bottom:2px;}
 
-        .options-row { display: flex; gap: 10px; margin-top: 20px; }
-        .visibility-toggle {
-            flex: 1; display: flex; align-items: center; justify-content: space-between;
-            background: rgba(255,255,255,0.05); padding: 12px 15px; border-radius: 12px; 
+        /* Options */
+        .options-row { display: flex; gap: 10px; margin-top: 15px; }
+        .visibility-toggle { 
+            flex: 1; display: flex; align-items: center; justify-content: space-between; 
+            background: rgba(255,255,255,0.05); padding: 12px 16px; border-radius: 16px; 
             cursor: pointer; border: 1px solid transparent; transition: 0.3s;
         }
-        [data-theme="light"] .visibility-toggle { background: #e2e8f0; }
-        .visibility-toggle.active { border-color: var(--accent); background: rgba(59, 130, 246, 0.1); }
-        .vis-icon { color: var(--text-muted); }
-        .visibility-toggle.active .vis-icon { color: var(--accent); }
+        .visibility-toggle.active { border-color: var(--success); background: rgba(16, 185, 129, 0.1); }
+        .visibility-toggle i { font-size: 1.1rem; }
         
-        .btn-fav-save {
-            width: 50px; display: flex; justify-content: center; align-items: center;
-            background: rgba(255,255,255,0.05); border-radius: 12px; border: 1px solid transparent; cursor: pointer;
+        .btn-fav-save { 
+            width: 54px; display: flex; justify-content: center; align-items: center; 
+            background: rgba(255,255,255,0.05); border-radius: 16px; 
+            border: 1px solid transparent; cursor: pointer; transition: 0.3s;
         }
-        [data-theme="light"] .btn-fav-save { background: #e2e8f0; }
-        .btn-fav-save.saved { color: #ef4444; border-color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+        .btn-fav-save.saved { color: var(--danger); background: rgba(239, 68, 68, 0.15); border-color: var(--danger); }
 
-        .btn-main { width: 100%; padding: 16px; border-radius: 12px; border: none; background: var(--accent); color: white; font-size: 1rem; font-weight: 800; cursor: pointer; margin-top: 25px; }
-
-        .favorites-bar { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; margin-top: 20px; }
-        .fav-chip {
-            background: var(--card-bg); border: 1px solid var(--border); padding: 8px 12px;
-            border-radius: 20px; font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; cursor: pointer;
-            display: flex; align-items: center; gap: 5px;
+        .btn-main { 
+            width: 100%; padding: 18px; border-radius: 18px; border: none; 
+            background: linear-gradient(90deg, var(--primary), var(--secondary)); 
+            color: white; font-size: 1rem; font-weight: 800; cursor: pointer; margin-top: 20px; 
+            box-shadow: 0 4px 20px rgba(59, 130, 246, 0.4);
+            transition: 0.3s; text-transform: uppercase; letter-spacing: 1px;
         }
-        .fav-chip i { color: #ef4444; font-size: 0.7rem; }
+        .btn-main:active { transform: scale(0.98); }
 
-        .bottom-sheet { position: absolute; bottom: 20px; left: 15px; right: 15px; background: var(--card-bg); backdrop-filter: blur(20px); border-radius: 24px; padding: 0 20px 20px 20px; z-index: 1500; border: 1px solid var(--border); transform: translateY(150%); transition: transform 0.4s cubic-bezier(0.33, 1, 0.68, 1); max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+        .favorites-bar { display: flex; gap: 10px; overflow-x: auto; padding: 10px 0; margin-top: 10px; scrollbar-width: none; }
+        .fav-chip { 
+            background: rgba(255,255,255,0.08); padding: 8px 14px; border-radius: 50px; 
+            font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; cursor: pointer; 
+            display: flex; align-items: center; gap: 6px; border: 1px solid transparent;
+        }
+        .fav-chip:active { background: var(--accent); color: black; }
+
+        /* Résultats */
+        .bottom-sheet { 
+            position: absolute; bottom: 0; left: 0; width: 100%; 
+            background: rgba(15, 15, 20, 0.95);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-radius: 30px 30px 0 0; padding: 0 20px 30px 20px; z-index: 1500; 
+            border-top: 1px solid var(--glass-border); 
+            transform: translateY(150%); transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); 
+            max-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; 
+            box-sizing: border-box;
+            box-shadow: 0 -10px 50px rgba(0,0,0,0.8);
+        }
         .bottom-sheet.active { transform: translateY(0); }
-        .sheet-header { position: sticky; top: 0; background: inherit; z-index: 10; padding-top: 15px; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-        .drag-handle { width: 40px; height: 4px; background: var(--text-muted); opacity:0.3; border-radius: 10px; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); }
-        .sheet-title { font-weight: 800; color: var(--text-muted); font-size: 0.8rem; letter-spacing: 1px; }
-        .btn-close-sheet { background: rgba(255,255,255,0.1); border: none; color: var(--text-main); width: 30px; height: 30px; border-radius: 50%; cursor: pointer; display: flex; justify-content: center; align-items: center; }
-        [data-theme="light"] .btn-close-sheet { background: #e2e8f0; }
+        .sheet-header { position: sticky; top: 0; background: transparent; z-index: 10; padding-top: 15px; padding-bottom: 15px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .drag-handle { width: 50px; height: 5px; background: rgba(255,255,255,0.2); border-radius: 10px; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); }
+        .sheet-title { font-weight: 800; color: var(--accent); font-size: 0.9rem; letter-spacing: 2px; }
 
-        .bus-item { display: flex; align-items: center; padding: 15px; background: rgba(255,255,255,0.03); border-radius: 16px; margin-bottom: 10px; cursor: pointer; border: 1px solid transparent; transition: 0.2s; }
-        [data-theme="light"] .bus-item { background: #f8fafc; border: 1px solid #e2e8f0; }
-        .bus-item:active { border-color: var(--accent); }
+        .bus-item { 
+            display: flex; align-items: center; padding: 16px; 
+            background: rgba(255,255,255,0.03); border-radius: 20px; 
+            margin-bottom: 12px; cursor: pointer; border: 1px solid transparent; transition: 0.2s; 
+        }
+        .bus-item:active { border-color: var(--accent); background: rgba(6, 182, 212, 0.05); }
         .bus-info { flex: 1; margin-left: 15px; }
-        .bus-name { color: var(--text-main); font-weight: 800; font-size: 1rem; }
-        .bus-meta { color: var(--accent); font-size: 0.85rem; font-weight: 600; }
-        .bus-matricule { background: rgba(59, 130, 246, 0.15); padding: 2px 6px; border-radius: 4px; color: var(--accent); font-size: 0.75rem; margin-left: 5px; }
-        .bus-distance { color: var(--text-main); font-weight: 700; }
-        .btn-share { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1.1rem; margin-left: 10px; z-index: 5; }
-        .btn-share:hover { color: var(--accent); }
+        .bus-name { color: var(--text-main); font-weight: 800; font-size: 1.1rem; }
+        .bus-meta { color: var(--text-muted); font-size: 0.85rem; font-weight: 500; margin-top:2px;}
+        .bus-matricule { background: rgba(255,255,255,0.1); padding: 3px 8px; border-radius: 6px; color: var(--text-main); font-size: 0.75rem; font-family: monospace; letter-spacing: 1px; margin-left: 8px;}
+        
+        /* Bouton Flottant "Recherche" quand fermé */
+        .fab-search {
+            position: absolute; bottom: 30px; right: 20px;
+            width: 60px; height: 60px;
+            background: var(--accent);
+            border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 0 20px var(--accent);
+            z-index: 900;
+            cursor: pointer;
+            animation: float 4s ease-in-out infinite;
+            border: 2px solid white;
+        }
     </style>
 </head>
 <body>
@@ -172,24 +245,25 @@
     <div class="top-bar">
         <div class="profile-chip">
             <img src="https://ui-avatars.com/api/?name=User&background=random" class="profile-img">
-            <div class="profile-text" id="txtName">Voyageur</div>
+            <div class="profile-text">
+                Shuttl<span style="color:var(--accent); font-size:1.2em;">.</span>
+            </div>
         </div>
         <div class="top-right-group">
-            <div class="round-btn" onclick="toggleTheme()">
-                <i class="fas fa-moon" id="themeIcon"></i>
-            </div>
-            <div class="round-btn" onclick="toggleSearch()">
-                <i class="fas fa-search"></i>
+            <div class="round-btn" onclick="location.reload()"> <i class="fas fa-sync-alt"></i>
             </div>
         </div>
     </div>
 
     <div id="map"></div>
 
-    <div class="search-overlay active" id="searchOverlay">
-        <div class="search-card">
+    <div class="fab-search" onclick="toggleSearch()" id="fabSearch" style="display:none;">
+        <i class="fas fa-search" style="color:black; font-size:1.5rem;"></i>
+    </div>
+
+    <div class="search-overlay" id="searchOverlay"> <div class="search-card active">
             <div class="card-title">
-                Trajet
+                Planifier
                 <button class="btn-close" onclick="toggleSearch()"><i class="fas fa-times"></i></button>
             </div>
             
@@ -209,9 +283,11 @@
 
             <div class="options-row">
                 <div class="visibility-toggle active" id="btnVisibilite" onclick="toggleVisibility()">
-                    <div class="vis-icon"><i class="fas fa-eye" id="visIcon"></i></div>
-                    <span style="font-size:0.8rem; font-weight:600; color:var(--text-muted);" id="visText">Visible</span>
-                    <i class="fas fa-toggle-on" id="visToggleIcon" style="color:var(--accent);"></i>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <i class="fas fa-eye" id="visIcon" style="color:var(--success);"></i>
+                        <span style="font-size:0.9rem; font-weight:700; color:var(--text-main);" id="visText">Visible</span>
+                    </div>
+                    <i class="fas fa-toggle-on" id="visToggleIcon" style="color:var(--success); font-size:1.2rem;"></i>
                 </div>
                 <div class="btn-fav-save" onclick="saveFavorite()">
                     <i class="fas fa-heart"></i>
@@ -219,7 +295,7 @@
             </div>
 
             <button class="btn-main" onclick="lancerRecherche()">
-                Trouver un chauffeur
+                Trouver un Shuttl
             </button>
 
             <div class="favorites-bar" id="favContainer"></div>
@@ -229,7 +305,7 @@
     <div class="bottom-sheet" id="resultsSheet">
         <div class="sheet-header">
             <div class="drag-handle"></div>
-            <div class="sheet-title">RÉSULTATS</div>
+            <div class="sheet-title">RÉSULTATS PROCHES</div>
             <button class="btn-close-sheet" onclick="fermerResultats()"><i class="fas fa-times"></i></button>
         </div>
         <div id="busList"></div>
@@ -237,10 +313,12 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
     <script>
+        // --- 1. CONFIGURATION SYSTEME ---
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(console.error);
+        }
         const SERVER_URL = "https://finaltrans.onrender.com"; 
         
-        // --- 0. IDENTIFIANT UNIQUE VOYAGEUR (POUR UPSERT) ---
-        // Ajout essentiel pour éviter les doublons GPS en base de données
         let passengerId = localStorage.getItem('my_passenger_id');
         if (!passengerId) {
             passengerId = 'user_' + Math.random().toString(36).substr(2, 9);
@@ -255,22 +333,57 @@
         let busMarkers = {};
         let map; 
         let tileLayer;
-        let isTraveling = false; // Flag pour savoir si on est monté dans le bus (Vitesse > 15km/h)
+        let isTraveling = false;
 
         const session = JSON.parse(localStorage.getItem('user_session'));
-        if(session && session.user.nom_complet) document.getElementById('txtName').innerText = session.user.nom_complet.split(' ')[0];
+        // if(session && session.user.nom_complet) document.getElementById('txtName').innerText = session.user.nom_complet.split(' ')[0];
 
+        // --- 2. CARTE "DARK MATTER" (STYLE NOCTURNE PRO) ---
         function initMap() {
-            map = L.map('map', { zoomControl: false }).setView([36.72, 4.05], 13);
-            const themeUrl = getComputedStyle(document.documentElement).getPropertyValue('--map-tiles').trim().replace(/'/g, "");
-            tileLayer = L.tileLayer(themeUrl).addTo(map);
+            map = L.map('map', { zoomControl: false, fadeAnimation: true }).setView([36.72, 4.05], 13);
+            
+            // Fond sombre CartoDB Dark Matter (Très propre)
+            const themeUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+            
+            tileLayer = L.tileLayer(themeUrl, {
+                detectRetina: true, 
+                maxZoom: 20,
+                keepBuffer: 10, 
+                updateWhenIdle: false, 
+                attribution: ''
+            }).addTo(map);
         }
         initMap();
 
+        // --- 3. LOGIQUE UI ET ANIMATION ---
+        function toggleSearch() { 
+            const card = document.querySelector('.search-card');
+            const fab = document.getElementById('fabSearch');
+            
+            if(card.classList.contains('active')) {
+                card.classList.remove('active');
+                fab.style.display = 'flex'; // Afficher le bouton flottant
+            } else {
+                card.classList.add('active');
+                fab.style.display = 'none'; // Cacher le bouton flottant
+                document.getElementById('resultsSheet').classList.remove('active');
+            }
+        }
+        
+        // Initial state
+        document.querySelector('.search-card').classList.add('active');
+
+        function fermerResultats() { 
+            document.getElementById('resultsSheet').classList.remove('active');
+            // Réouvrir la recherche si on ferme les résultats
+            setTimeout(() => { document.querySelector('.search-card').classList.add('active'); }, 300);
+        }
+
+        // --- 4. MARQUEURS ---
         const iconBus = L.divIcon({
             className: 'modern-bus-icon',
             html: '<i class="fas fa-bus"></i>',
-            iconSize: [36, 36], iconAnchor: [18, 18], popupAnchor: [0, -20]
+            iconSize: [40, 40], iconAnchor: [20, 20], popupAnchor: [0, -25]
         });
 
         const iconUser = L.divIcon({
@@ -281,17 +394,7 @@
 
         const iconStation = L.divIcon({ className: 'station-icon', html: '', iconSize: [12, 12], iconAnchor: [6, 6] });
 
-        function toggleTheme() {
-            const html = document.documentElement;
-            const current = html.getAttribute('data-theme');
-            const icon = document.getElementById('themeIcon');
-            if (current === 'dark') {
-                html.setAttribute('data-theme', 'light'); icon.className = "fas fa-sun"; tileLayer.setUrl('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
-            } else {
-                html.setAttribute('data-theme', 'dark'); icon.className = "fas fa-moon"; tileLayer.setUrl('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png');
-            }
-        }
-
+        // --- 5. FONCTIONS MÉTIER ---
         function loadFavorites() {
             const favs = JSON.parse(localStorage.getItem('tizi_favs') || '[]');
             const container = document.getElementById('favContainer');
@@ -299,7 +402,7 @@
             favs.forEach((fav, index) => {
                 const chip = document.createElement('div');
                 chip.className = 'fav-chip';
-                chip.innerHTML = `<i class="fas fa-heart"></i> ${fav.arr}`; 
+                chip.innerHTML = `<i class="fas fa-heart" style="color:var(--danger)"></i> ${fav.arr}`; 
                 chip.onclick = () => { document.getElementById('txtDepart').value = fav.dep; document.getElementById('txtArrivee').value = fav.arr; lancerRecherche(); };
                 chip.oncontextmenu = (e) => { e.preventDefault(); if(confirm("Supprimer ce favori ?")) { favs.splice(index, 1); localStorage.setItem('tizi_favs', JSON.stringify(favs)); loadFavorites(); } };
                 container.appendChild(chip);
@@ -319,22 +422,22 @@
 
         function shareBus(busId, chauffeurNom) {
             const url = `${window.location.origin}${window.location.pathname}?bus=${busId}`;
-            if (navigator.share) { navigator.share({ title: 'Suivre ce bus', text: `Suis le bus de ${chauffeurNom} !`, url: url }).catch(console.error); }
+            if (navigator.share) { navigator.share({ title: 'Suivre ce Shuttl', text: `Suis le bus de ${chauffeurNom} !`, url: url }).catch(console.error); }
             else { navigator.clipboard.writeText(url); alert("Lien copié !"); }
         }
 
         const urlParams = new URLSearchParams(window.location.search);
         const sharedBusId = urlParams.get('bus');
-        if(sharedBusId) { rechercheActive = true; document.getElementById('searchOverlay').classList.remove('active'); }
+        if(sharedBusId) { rechercheActive = true; document.querySelector('.search-card').classList.remove('active'); document.getElementById('fabSearch').style.display = 'flex'; }
 
+        // --- 6. GEOLOCALISATION ---
         if (navigator.geolocation) {
             navigator.geolocation.watchPosition(pos => {
                 userLat = pos.coords.latitude; userLon = pos.coords.longitude;
                 userSpeed = pos.coords.speed || 0;
                 
-                // --- LOGIQUE VITESSE : Si > 15 km/h, on considère qu'il voyage ---
                 let speedKmH = userSpeed * 3.6;
-                if (speedKmH > 15) { isTraveling = true; }
+                if (speedKmH > 15) { isTraveling = true; } else { isTraveling = false; }
 
                 if(!userMarker) { userMarker = L.marker([userLat, userLon], {icon: iconUser}).addTo(map); map.setView([userLat, userLon], 14); }
                 else { userMarker.setLatLng([userLat, userLon]); }
@@ -372,12 +475,14 @@
             isVisibleToDriver = !isVisibleToDriver;
             const toggle = document.getElementById('visToggleIcon'); const text = document.getElementById('visText');
             document.getElementById('btnVisibilite').classList.toggle('active');
-            if(isVisibleToDriver) { toggle.className = "fas fa-toggle-on"; toggle.style.color = "var(--accent)"; text.innerText = "Visible"; }
-            else { toggle.className = "fas fa-toggle-off"; toggle.style.color = "#64748b"; text.innerText = "Invisible"; }
+            if(isVisibleToDriver) { 
+                toggle.className = "fas fa-toggle-on"; toggle.style.color = "var(--success)"; text.innerText = "Visible"; 
+                document.getElementById('visIcon').style.color = "var(--success)";
+            } else { 
+                toggle.className = "fas fa-toggle-off"; toggle.style.color = "#64748b"; text.innerText = "Invisible"; 
+                document.getElementById('visIcon').style.color = "#64748b";
+            }
         }
-
-        function toggleSearch() { document.getElementById('searchOverlay').classList.toggle('active'); }
-        function fermerResultats() { document.getElementById('resultsSheet').classList.remove('active'); }
 
         function lancerRecherche() {
             const dep = document.getElementById('txtDepart').value; const arr = document.getElementById('txtArrivee').value;
@@ -385,13 +490,13 @@
             document.querySelectorAll('.leaflet-marker-icon .terminus-flag').forEach(el => el.parentElement.remove());
             if(!dep && !arr) return alert("Remplissez au moins une ville !");
             
-            // RESET DU STATUT DE VOYAGE (L'utilisateur cherche un nouveau bus)
-            isTraveling = false;
+            isTraveling = false; // Reset statut voyage
             
             rechercheActive = true;
-            document.getElementById('searchOverlay').classList.remove('active');
-            document.getElementById('resultsSheet').classList.add('active');
-            document.getElementById('busList').innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">Recherche...</div>';
+            document.querySelector('.search-card').classList.remove('active'); // Fermer recherche
+            document.getElementById('fabSearch').style.display = 'flex'; // Afficher bouton
+            document.getElementById('resultsSheet').classList.add('active'); // Ouvrir résultats
+            document.getElementById('busList').innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-muted);"><i class="fas fa-satellite-dish fa-spin fa-2x"></i><br><br>Recherche de Shuttl...</div>';
             fetchBus();
         }
 
@@ -403,7 +508,9 @@
             try {
                 const res = await fetch(url); const data = await res.json();
                 if (data.routes && data.routes.length > 0) {
-                    currentRouteLayer = L.geoJSON(data.routes[0].geometry, { style: { color: "#3b82f6", weight: 6, opacity: 0.8 } }).addTo(map);
+                    currentRouteLayer = L.geoJSON(data.routes[0].geometry, { 
+                        style: { color: "#3b82f6", weight: 6, opacity: 0.9, lineCap: 'round' } // Ligne bleue pro
+                    }).addTo(map);
                     map.fitBounds(currentRouteLayer.getBounds(), { padding: [50, 50] });
                 }
             } catch (e) { console.error("Erreur trajet:", e); }
@@ -416,20 +523,16 @@
             const dep = document.getElementById('txtDepart').value;
             const arr = document.getElementById('txtArrivee').value;
 
-            // --- LOGIQUE VISIBILITÉ FINALE ---
             let effectiveVisibility = isVisibleToDriver;
-            if (isTraveling) effectiveVisibility = false; // Si en voyage (dépassement 15km/h), invisible
+            if (isTraveling) effectiveVisibility = false;
 
             try {
                 const res = await fetch(SERVER_URL + '/api/trouver-bus', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ 
-                        user_lat: userLat, 
-                        user_lon: userLon, 
-                        depart_text: dep, 
-                        arrivee_text: arr, 
-                        visible: effectiveVisibility,
-                        passenger_id: passengerId // ID UNIQUE envoyé au serveur
+                        user_lat: userLat, user_lon: userLon, 
+                        depart_text: dep, arrivee_text: arr, 
+                        visible: effectiveVisibility, passenger_id: passengerId 
                     })
                 });
                 const data = await res.json();
@@ -442,11 +545,11 @@
                     data.bus_proches.forEach(bus => {
                         const m = L.marker([bus.current_lat, bus.current_lon], {icon: iconBus}).addTo(map);
                         m.bindPopup(`
-                            <div style="text-align:center; color:black; font-family:'Urbanist',sans-serif;">
+                            <div style="text-align:center; color:black; font-family:'Plus Jakarta Sans',sans-serif;">
                                 <div style="background:var(--accent); color:white; font-weight:800; padding:5px; border-radius:8px; margin-bottom:5px;">~ ${bus.eta || '?'} min</div>
                                 <strong>${bus.chauffeur}</strong><br>
                                 <span style="font-size:0.8rem;">${bus.modele}</span><br>
-                                <span style="background:#facc15; padding:2px; font-weight:bold;">${bus.matricule}</span>
+                                <span style="background:#facc15; padding:2px 5px; font-weight:bold; border-radius:4px;">${bus.matricule}</span>
                             </div>
                         `);
                         m.on('click', () => { afficherTrajet(bus); });
@@ -459,24 +562,24 @@
                         const div = document.createElement('div');
                         div.className = 'bus-item';
                         div.innerHTML = `
-                            <div style="background:#333; width:40px; height:40px; border-radius:10px; display:flex; justify-content:center; align-items:center;">
-                                <i class="fas fa-bus" style="color:white;"></i>
+                            <div style="background:rgba(255,255,255,0.1); width:45px; height:45px; border-radius:12px; display:flex; justify-content:center; align-items:center;">
+                                <i class="fas fa-bus" style="color:var(--accent); font-size:1.2rem;"></i>
                             </div>
                             <div class="bus-info">
                                 <div class="bus-name">${bus.chauffeur}</div>
-                                <div class="bus-meta">${bus.modele}</div>
-                                <div class="bus-sub" style="color:var(--accent); font-weight:bold;">
-                                    <i class="fas fa-clock"></i> ${bus.eta || '?'} min <span style="color:var(--text-muted); font-weight:normal;">(${bus.distance_km} km)</span>
+                                <div class="bus-meta">${bus.modele} <span class="bus-matricule">${bus.matricule}</span></div>
+                                <div class="bus-sub" style="color:var(--accent); font-weight:bold; margin-top:4px;">
+                                    <i class="fas fa-bolt"></i> ${bus.eta || '?'} min <span style="color:var(--text-muted); font-weight:normal; margin-left:5px;">(${bus.distance_km} km)</span>
                                 </div>
                             </div>
                             <button class="btn-share" onclick="event.stopPropagation(); shareBus('${bus.bus_id}', '${bus.chauffeur}')">
-                                <i class="fas fa-share-alt"></i>
+                                <i class="fas fa-share" style="color:white;"></i>
                             </button>
                         `;
                         div.onclick = () => { afficherTrajet(bus); map.setView([bus.current_lat, bus.current_lon], 16); m.openPopup(); };
                         container.appendChild(div);
                     });
-                } else { container.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-muted);">Aucun bus trouvé.</div>'; }
+                } else { container.innerHTML = '<div style="padding:40px 20px; text-align:center; color:var(--text-muted);">Aucun Shuttl trouvé pour le moment.<br><small>Essayez une autre destination</small></div>'; }
             } catch(e) { console.error(e); }
         }
 
@@ -498,7 +601,7 @@
     }
     map.on('moveend', chargerArretsOsm);
     
-    // --- ACTUALISATION RAPIDE (1 SECONDE) ---
+    // Refresh rapide
     setInterval(fetchBus, 1000); 
     </script>
 </body>

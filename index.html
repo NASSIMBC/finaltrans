@@ -341,34 +341,46 @@
         let isTraveling = false;
 
         const session = JSON.parse(localStorage.getItem('user_session'));
-        
-        // --- 2. CARTE "DARK MATTER" ---
+        // if(session && session.user.nom_complet) document.getElementById('txtName').innerText = session.user.nom_complet.split(' ')[0];
+
+        // --- 2. CARTE "DARK MATTER" (STYLE NOCTURNE PRO) ---
         function initMap() {
             map = L.map('map', { zoomControl: false, fadeAnimation: true }).setView([36.72, 4.05], 13);
+            
+            // Fond sombre CartoDB Dark Matter (Très propre)
             const themeUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+            
             tileLayer = L.tileLayer(themeUrl, {
-                detectRetina: true, maxZoom: 20, keepBuffer: 10, updateWhenIdle: false, attribution: ''
+                detectRetina: true, 
+                maxZoom: 20,
+                keepBuffer: 10, 
+                updateWhenIdle: false, 
+                attribution: ''
             }).addTo(map);
         }
         initMap();
 
-        // --- 3. LOGIQUE UI ---
+        // --- 3. LOGIQUE UI ET ANIMATION ---
         function toggleSearch() { 
             const card = document.querySelector('.search-card');
             const fab = document.getElementById('fabSearch');
+            
             if(card.classList.contains('active')) {
                 card.classList.remove('active');
-                fab.style.display = 'flex'; 
+                fab.style.display = 'flex'; // Afficher le bouton flottant
             } else {
                 card.classList.add('active');
-                fab.style.display = 'none'; 
+                fab.style.display = 'none'; // Cacher le bouton flottant
                 document.getElementById('resultsSheet').classList.remove('active');
             }
         }
+        
+        // Initial state
         document.querySelector('.search-card').classList.add('active');
 
         function fermerResultats() { 
             document.getElementById('resultsSheet').classList.remove('active');
+            // Réouvrir la recherche si on ferme les résultats
             setTimeout(() => { document.querySelector('.search-card').classList.add('active'); }, 300);
         }
 

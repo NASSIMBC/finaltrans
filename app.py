@@ -1,6 +1,8 @@
 import os
 import math
 import datetime 
+import feedparser # NOUVEAU
+from dateutil import parser as date_parser # NOUVEAU (pip install python-dateutil)
 from flask import Flask, request, jsonify, send_from_directory
 from supabase import create_client, Client
 from flask_cors import CORS
@@ -124,7 +126,7 @@ def login():
         return jsonify({"error": "Rôle inconnu"}), 400
     except: return jsonify({"error": "Email ou mot de passe incorrect"}), 401
 
-# --- API 3 : MISE A JOUR POSITION (AMÉLIORÉE AVEC AUTO-STOP) ---
+# --- API 3 : MISE A JOUR POSITION ---
 @app.route('/api/update-position', methods=['POST'])
 def update_position():
     data = request.json
@@ -154,8 +156,6 @@ def update_position():
             dist_to_dep = haversine(lat, lon, coord_dep['lat'], coord_dep['lon'])
             dist_to_arr = haversine(lat, lon, coord_arr['lat'], coord_arr['lon'])
 
-            # --- LOGIQUE D'ARRÊT AUTOMATIQUE ---
-            # Si le chauffeur est à moins de 300 mètres du terminus
             if dist_to_arr < 0.3:
                 supabase.table('active_trips').delete().eq('chauffeur_id', driver_id).execute()
                 return jsonify({
@@ -218,7 +218,7 @@ def serve_manifest(): return send_from_directory('.', 'manifest.json')
 @app.route('/sw.js')
 def serve_sw(): return send_from_directory('.', 'sw.js')
 
-# --- API 4 : TROUVER BUS (MODIFIÉ POUR TICKETS) ---
+# --- API 4 : TROUVER BUS ---
 @app.route('/api/trouver-bus', methods=['POST'])
 def api_trouver_bus():
     data = request.json
@@ -246,11 +246,8 @@ def api_trouver_bus():
         except Exception as e: print(f"⚠️ Erreur: {e}")
 
     try:
-        # ON NE GARDE QUE LES BUS ACTIFS DEPUIS 45 SECONDES
         timeout_limit = (datetime.datetime.utcnow() - datetime.timedelta(seconds=45)).isoformat()
-
         active_trips = supabase.table('active_trips').select('*').gt('last_update', timeout_limit).execute().data
-        
         bus_proches = []
 
         for trip in active_trips:
@@ -334,7 +331,6 @@ def api_trouver_bus():
                 'terminus_officiel': coord_arr_ligne, 
                 'ligne_start': coord_dep_ligne,
                 'ligne_end': coord_arr_ligne,
-                # --- INFO TICKET AJOUTÉE ---
                 'ticket_actif': driver.get('ticket_actif', False),
                 'ticket_prix': driver.get('ticket_prix', 0)
             })
@@ -346,7 +342,7 @@ def api_trouver_bus():
         print(f"🔴 ERREUR: {e}")
         return jsonify({"bus_proches": []})
 
-# --- API 5 : UPDATE PROFILE (MODIFIÉ POUR TICKET) ---
+# --- API 5 : UPDATE PROFILE ---
 @app.route('/api/update-driver-profile', methods=['POST'])
 def update_driver_profile():
     data = request.json
@@ -360,13 +356,11 @@ def update_driver_profile():
             'ville_arrivee': data.get('ville_arrivee', '').lower().strip(),
         }
         
-        # Coordonnées
         if data.get('dep_lat'): update_data['dep_lat'] = data.get('dep_lat')
         if data.get('dep_lon'): update_data['dep_lon'] = data.get('dep_lon')
         if data.get('arr_lat'): update_data['arr_lat'] = data.get('arr_lat')
         if data.get('arr_lon'): update_data['arr_lon'] = data.get('arr_lon')
 
-        # --- GESTION TICKET ---
         if 'ticket_actif' in data: update_data['ticket_actif'] = data.get('ticket_actif')
         if 'ticket_prix' in data: update_data['ticket_prix'] = data.get('ticket_prix')
 
@@ -374,6 +368,48 @@ def update_driver_profile():
         return jsonify({"status": "success"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# --- API 6 : NEWS ALGERIE (NOUVEAU) ---
+@app.route('/api/news', methods=['GET'])
+def get_transport_news():
+    # Sources d'info fiables en Algérie
+    rss_urls = [
+        "https://www.tsa-algerie.com/feed/",
+        "https://www.algerie360.com/feed/",
+        "https://www.aps.dz/algerie?format=feed" # Agence Presse Service
+    ]
+    
+    keywords = ["transport", "bus", "tramway", "métro", "route", "circulation", "tizi ouzou", "naftal", "etusa", "train", "sntf", "autoroute"]
+    news_items = []
+
+    try:
+        for url in rss_urls:
+            feed = feedparser.parse(url)
+            for entry in feed.entries:
+                # Filtrage intelligent
+                text_content = (entry.title + " " + entry.description).lower()
+                if any(k in text_content for k in keywords):
+                    try:
+                        dt = date_parser.parse(entry.published)
+                        date_str = dt.strftime("%d/%m %H:%M")
+                    except:
+                        date_str = "Récemment"
+
+                    # Nettoyage du résumé HTML si nécessaire
+                    summary_text = entry.description.replace('<p>', '').replace('</p>', '')[:120] + "..."
+
+                    news_items.append({
+                        "title": entry.title,
+                        "link": entry.link,
+                        "source": feed.feed.title.split('-')[0].strip()[:15], 
+                        "date": date_str,
+                        "summary": summary_text
+                    })
+        
+        return jsonify(news_items[:10]) 
+    except Exception as e:
+        print(f"Erreur News: {e}")
+        return jsonify([])
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

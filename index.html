@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Almarai:wght@400;700;800&display=swap" rel="stylesheet">
 
     <style>
         :root {
@@ -32,7 +33,13 @@
         body { 
             margin: 0; font-family: 'Plus Jakarta Sans', sans-serif; 
             background: var(--bg-body); overflow: hidden; color: var(--text-main); 
+            transition: 0.3s;
         }
+
+        /* Mode ARABE (RTL) */
+        body.rtl { direction: rtl; font-family: 'Almarai', sans-serif; }
+        body.rtl .bus-matricule { margin-left: 0; margin-right: 5px; }
+        body.rtl .profile-chip { padding: 6px 6px 6px 16px; }
         
         #map { height: 100vh; width: 100%; z-index: 1; background: #111; }
         .leaflet-control-attribution { display: none; }
@@ -57,7 +64,7 @@
         }
         .station-icon { background: #333; border: 2px solid #666; border-radius: 50%; }
 
-        /* --- MARQUEURS WAZE (NOUVEAU) --- */
+        /* --- MARQUEURS WAZE --- */
         .event-marker { z-index: 2000 !important; }
 
         /* --- TOP BAR --- */
@@ -91,13 +98,15 @@
             background: var(--danger); border-radius: 50%; border: 2px solid black; 
         }
 
-        /* --- BOUTON SIGNALEMENT WAZE (NOUVEAU) --- */
+        /* --- BOUTON SIGNALEMENT WAZE --- */
         .report-btn { 
             pointer-events: auto; position: absolute; right: 20px; bottom: 140px; 
             width: 55px; height: 55px; background: var(--warning); border-radius: 50%; 
             display: flex; justify-content: center; align-items: center; z-index: 1000; 
             box-shadow: 0 0 20px rgba(245, 158, 11, 0.5); border: 3px solid white; cursor: pointer;
         }
+        /* Ajustement position bouton signalement en Arabe */
+        body.rtl .report-btn { right: auto; left: 20px; }
 
         /* --- MODAL NEWS & SIGNALEMENT --- */
         .news-modal { 
@@ -218,7 +227,7 @@
         .bus-meta { color: var(--text-muted); font-size: 0.8rem; }
         .bus-matricule { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.75rem; margin-left: 5px; }
         
-        /* STYLE DES BOUTONS DE TICKET (NOUVEAU) */
+        /* STYLE DES BOUTONS DE TICKET */
         .ticket-list { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
         .ticket-btn {
             background: linear-gradient(135deg, #f59e0b, #d97706); border: none; 
@@ -236,6 +245,9 @@
             box-shadow: 0 0 20px var(--accent); z-index: 900; cursor: pointer; 
             animation: float 4s ease-in-out infinite; color: black; font-size: 1.2rem;
         }
+        
+        /* Lang Switcher */
+        .lang-switch-text { font-weight: 800; font-size: 0.8rem; }
     </style>
 </head>
 <body>
@@ -250,6 +262,10 @@
             </div>
         </div>
         <div class="top-right-group">
+            <div class="round-btn" onclick="cycleLanguage()">
+                <span id="langDisplay" class="lang-switch-text">FR</span>
+            </div>
+
             <div class="round-btn" onclick="openNews()" style="background: var(--gold); border: 1px solid var(--gold); color: black;">
                 <i class="fas fa-newspaper" style="font-size: 1.2rem;"></i>
                 <div class="notif-badge" style="border-color: var(--gold);"></div>
@@ -274,7 +290,7 @@
     <div class="news-modal" id="newsModal">
         <div class="sheet-header">
             <div class="drag-handle"></div>
-            <div class="sheet-title" style="color:var(--gold);">ACTUALITÉS TRANSPORT</div>
+            <div class="sheet-title" id="t_news_title" style="color:var(--gold);">ACTUALITÉS TRANSPORT</div>
             <button class="btn-close" onclick="closeNews()"><i class="fas fa-times"></i></button>
         </div>
         <div id="newsList" class="news-content">
@@ -287,25 +303,25 @@
     <div class="news-modal" id="reportModal" style="height: auto; border-radius: 30px 30px 0 0;">
         <div class="sheet-header">
             <div class="drag-handle"></div>
-            <div class="sheet-title" style="color:var(--warning);">SIGNALER</div>
+            <div class="sheet-title" id="t_signal_title" style="color:var(--warning);">SIGNALER</div>
             <button class="btn-close" onclick="toggleReport()"><i class="fas fa-times"></i></button>
         </div>
         <div class="report-grid">
             <div class="report-item" onclick="envoyerSignalement('bouchon')">
                 <span class="report-icon" style="color:#ef4444;"><i class="fas fa-car-burst"></i></span>
-                <span class="report-label">Bouchon</span>
+                <span class="report-label" id="t_bouchon">Bouchon</span>
             </div>
             <div class="report-item" onclick="envoyerSignalement('accident')">
                 <span class="report-icon" style="color:#f59e0b;"><i class="fas fa-ambulance"></i></span>
-                <span class="report-label">Accident</span>
+                <span class="report-label" id="t_accident">Accident</span>
             </div>
             <div class="report-item" onclick="envoyerSignalement('travaux')">
                 <span class="report-icon" style="color:#3b82f6;"><i class="fas fa-tools"></i></span>
-                <span class="report-label">Travaux</span>
+                <span class="report-label" id="t_travaux">Travaux</span>
             </div>
             <div class="report-item" onclick="envoyerSignalement('danger')">
                 <span class="report-icon" style="color:#d4fb79;"><i class="fas fa-exclamation-circle"></i></span>
-                <span class="report-label">Danger</span>
+                <span class="report-label" id="t_danger">Danger</span>
             </div>
         </div>
     </div>
@@ -313,7 +329,7 @@
     <div class="search-overlay" id="searchOverlay"> 
         <div class="search-card active">
             <div class="card-title">
-                Planifier
+                <span id="t_plan">Planifier</span>
                 <button class="btn-close" onclick="toggleSearch()"><i class="fas fa-times"></i></button>
             </div>
             
@@ -341,7 +357,7 @@
                 </div>
             </div>
 
-            <button class="btn-main" onclick="lancerRecherche()">
+            <button class="btn-main" id="btnSearch" onclick="lancerRecherche()">
                 Trouver un Shuttl
             </button>
 
@@ -352,7 +368,7 @@
     <div class="bottom-sheet" id="resultsSheet">
         <div class="sheet-header">
             <div class="drag-handle"></div>
-            <div class="sheet-title">RÉSULTATS PROCHES</div>
+            <div class="sheet-title" id="t_results">RÉSULTATS PROCHES</div>
             <button class="btn-close-sheet" onclick="fermerResultats()"><i class="fas fa-times"></i></button>
         </div>
         <div id="busList"></div>
@@ -372,42 +388,87 @@
 
         let rechercheActive = false; let currentRouteLayer = null; let isVisibleToDriver = true;
         let userLat, userLon, userMarker; let userSpeed = 0; let busMarkers = {}; let map; let tileLayer; let isTraveling = false;
-        let eventMarkers = []; // Pour les signalements Waze
+        let eventMarkers = []; 
         const session = JSON.parse(localStorage.getItem('user_session'));
 
-        // --- GESTION NEWS ---
-        function openNews() {
-            document.getElementById('newsModal').classList.add('active');
-            fetchNews();
-        }
-        function closeNews() { document.getElementById('newsModal').classList.remove('active'); }
-
-        async function fetchNews() {
-            const container = document.getElementById('newsList');
-            try {
-                const res = await fetch(SERVER_URL + '/api/news');
-                const data = await res.json();
-                
-                if(data.length === 0) {
-                    container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">Pas de nouvelles récentes.</div>';
-                    return;
-                }
-
-                container.innerHTML = '';
-                data.forEach(item => {
-                    const div = document.createElement('div');
-                    div.className = 'news-item';
-                    div.innerHTML = `
-                        <div class="news-source">${item.source} <span class="news-date">${item.date}</span></div>
-                        <div class="news-title">${item.title}</div>
-                        <div class="news-summary">${item.summary}</div>
-                    `;
-                    div.onclick = () => window.open(item.link, '_blank');
-                    container.appendChild(div);
-                });
-            } catch(e) {
-                container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--danger);">Impossible de charger les infos.</div>';
+        // --- DICTIONNAIRE DE LANGUES ---
+        const translations = {
+            fr: {
+                plan: "Planifier",
+                dep: "D'où partez-vous ?",
+                arr: "Où allez-vous ?",
+                visible: "Visible",
+                invisible: "Invisible",
+                find: "Trouver un Shuttl",
+                news_title: "ACTUALITÉS TRANSPORT",
+                signal_title: "SIGNALER",
+                results: "RÉSULTATS PROCHES",
+                bouchon: "Bouchon", accident: "Accident", travaux: "Travaux", danger: "Danger",
+                loading: "Chargement...", no_bus: "Aucun Shuttl trouvé.", ticket: "Acheter Ticket"
+            },
+            kab: {
+                plan: "Sews-ed abrid",
+                dep: "Ansi ara tekkeḍ?",
+                arr: "Sani ara truḥeḍ?",
+                visible: "Iban",
+                invisible: "Iffer",
+                find: "Nadi Shuttl",
+                news_title: "ISALLEN",
+                signal_title: "SIWLEḌ",
+                results: "IGMAD",
+                bouchon: "Asṛaḥ", accident: "Asehwu", travaux: "Imahilen", danger: "Awuhi",
+                loading: "La ittaba...", no_bus: "Ulac Shuttl.", ticket: "Aɣ Ticket"
+            },
+            ar: {
+                plan: "خطط رحلتك",
+                dep: "منين راك قالع؟",
+                arr: "وين راك رايح؟",
+                visible: "ظاهر",
+                invisible: "مخفي",
+                find: "حوس على Shuttl",
+                news_title: "أخبار النقل",
+                signal_title: "تبليغ",
+                results: "النتائج القريبة",
+                bouchon: "ازدحام", accident: "حادث", travaux: "أشغال", danger: "خطر",
+                loading: "جاري البحث...", no_bus: "لا توجد حافلات", ticket: "شراء تذكرة"
             }
+        };
+
+        let currentLang = localStorage.getItem('shuttl_lang') || 'fr';
+
+        function applyLanguage() {
+            const t = translations[currentLang];
+            document.body.classList.remove('rtl');
+            if(currentLang === 'ar') document.body.classList.add('rtl');
+
+            document.getElementById('langDisplay').innerText = currentLang.toUpperCase();
+            
+            // Textes statiques
+            document.getElementById('t_plan').innerText = t.plan;
+            document.getElementById('txtDepart').placeholder = t.dep;
+            document.getElementById('txtArrivee').placeholder = t.arr;
+            document.getElementById('btnSearch').innerText = t.find;
+            document.getElementById('t_news_title').innerText = t.news_title;
+            document.getElementById('t_signal_title').innerText = t.signal_title;
+            document.getElementById('t_results').innerText = t.results;
+            
+            // Visibilité
+            const visText = document.getElementById('visText');
+            if(visText) visText.innerText = isVisibleToDriver ? t.visible : t.invisible;
+
+            // Signalement
+            document.getElementById('t_bouchon').innerText = t.bouchon;
+            document.getElementById('t_accident').innerText = t.accident;
+            document.getElementById('t_travaux').innerText = t.travaux;
+            document.getElementById('t_danger').innerText = t.danger;
+        }
+
+        function cycleLanguage() {
+            if(currentLang === 'fr') currentLang = 'kab';
+            else if(currentLang === 'kab') currentLang = 'ar';
+            else currentLang = 'fr';
+            localStorage.setItem('shuttl_lang', currentLang);
+            applyLanguage();
         }
 
         // --- MAP INIT ---
@@ -418,126 +479,105 @@
                 detectRetina: true, maxZoom: 20, keepBuffer: 10, updateWhenIdle: false, attribution: ''
             }).addTo(map);
             
-            chargerEvenements(); // Charger les signalements
-            setInterval(chargerEvenements, 30000); // Rafraîchir toutes les 30s
+            chargerEvenements(); 
+            setInterval(chargerEvenements, 30000); 
+            applyLanguage(); // Appliquer la langue au démarrage
         }
         initMap();
 
-        // --- CHARGEMENT EVENEMENTS (WAZE LIKE) ---
+        // --- GESTION NEWS ---
+        function openNews() { document.getElementById('newsModal').classList.add('active'); fetchNews(); }
+        function closeNews() { document.getElementById('newsModal').classList.remove('active'); }
+
+        async function fetchNews() {
+            const container = document.getElementById('newsList');
+            try {
+                const res = await fetch(SERVER_URL + '/api/news');
+                const data = await res.json();
+                if(data.length === 0) { container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-muted);">Pas de nouvelles.</div>'; return; }
+                container.innerHTML = '';
+                data.forEach(item => {
+                    const div = document.createElement('div'); div.className = 'news-item';
+                    div.innerHTML = `<div class="news-source">${item.source} <span class="news-date">${item.date}</span></div><div class="news-title">${item.title}</div><div class="news-summary">${item.summary}</div>`;
+                    div.onclick = () => window.open(item.link, '_blank');
+                    container.appendChild(div);
+                });
+            } catch(e) { container.innerHTML = '<div style="text-align:center; padding:20px; color:var(--danger);">Erreur.</div>'; }
+        }
+
+        // --- SIGNALEMENT ---
         function toggleReport() { document.getElementById('reportModal').classList.toggle('active'); }
 
         async function envoyerSignalement(type) {
-            if(!userMarker) return alert("Attendez le signal GPS !");
+            console.log("Tentative de signalement : " + type);
+            if(!userMarker) { alert("❌ Erreur GPS. Attendez le point bleu."); return; }
             const pos = userMarker.getLatLng();
             try {
                 const res = await fetch(SERVER_URL + '/api/report-event', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ type: type, lat: pos.lat, lon: pos.lng, user_id: passengerId })
                 });
-                if(res.ok) {
-                    alert("Signalement envoyé ! Merci.");
-                    toggleReport();
-                    chargerEvenements();
-                } else { alert("Erreur envoi"); }
-            } catch(e) { console.error(e); }
+                if(res.ok) { alert("✅ Signalement envoyé !"); toggleReport(); chargerEvenements(); } 
+                else { alert("⚠️ Erreur serveur"); }
+            } catch(e) { alert("❌ Erreur connexion"); }
         }
 
         async function chargerEvenements() {
             try {
-                const res = await fetch(SERVER_URL + '/api/get-events');
-                const events = await res.json();
-                
-                // Nettoyer anciens marqueurs
-                eventMarkers.forEach(m => map.removeLayer(m));
-                eventMarkers = [];
-
+                const res = await fetch(SERVER_URL + '/api/get-events'); const events = await res.json();
+                eventMarkers.forEach(m => map.removeLayer(m)); eventMarkers = [];
                 events.forEach(evt => {
-                    let color = 'white';
-                    let icon = 'fa-info';
-                    if(evt.type === 'bouchon') { color = '#ef4444'; icon = 'fa-car-burst'; }
-                    else if(evt.type === 'accident') { color = '#f59e0b'; icon = 'fa-ambulance'; }
-                    else if(evt.type === 'travaux') { color = '#3b82f6'; icon = 'fa-tools'; }
-                    else if(evt.type === 'danger') { color = '#d4fb79'; icon = 'fa-exclamation'; }
-
-                    const evtIcon = L.divIcon({
-                        className: 'event-marker',
-                        html: `<div style="background:${color}; width:30px; height:30px; border-radius:50%; border:2px solid white; display:flex; justify-content:center; align-items:center; box-shadow:0 0 15px ${color};"><i class="fas ${icon}" style="color:black; font-size:14px;"></i></div>`,
-                        iconSize: [30, 30], iconAnchor: [15, 15]
-                    });
-
-                    const m = L.marker([evt.lat, evt.lon], {icon: evtIcon}).addTo(map);
-                    eventMarkers.push(m);
+                    let color = 'white', icon = 'fa-info';
+                    if(evt.type === 'bouchon') { color = '#ef4444'; icon = 'fa-car-burst'; } else if(evt.type === 'accident') { color = '#f59e0b'; icon = 'fa-ambulance'; } else if(evt.type === 'travaux') { color = '#3b82f6'; icon = 'fa-tools'; } else if(evt.type === 'danger') { color = '#d4fb79'; icon = 'fa-exclamation'; }
+                    const evtIcon = L.divIcon({ className: 'event-marker', html: `<div style="background:${color}; width:30px; height:30px; border-radius:50%; border:2px solid white; display:flex; justify-content:center; align-items:center; box-shadow:0 0 15px ${color};"><i class="fas ${icon}" style="color:black; font-size:14px;"></i></div>`, iconSize: [30, 30], iconAnchor: [15, 15] });
+                    eventMarkers.push(L.marker([evt.lat, evt.lon], {icon: evtIcon}).addTo(map));
                 });
-            } catch(e) { console.error("Err events:", e); }
+            } catch(e) {}
         }
 
         const iconBus = L.divIcon({ className: 'modern-bus-icon', html: '<i class="fas fa-bus"></i>', iconSize: [40, 40], iconAnchor: [20, 20], popupAnchor: [0, -25] });
         const iconUser = L.divIcon({ className: 'custom-div-icon', html: `<div class="pulse-ring"></div><div class="modern-user-icon" style="width:24px; height:24px;"></div>`, iconSize: [24, 24], iconAnchor: [12, 12] });
         const iconStation = L.divIcon({ className: 'station-icon', html: '', iconSize: [12, 12], iconAnchor: [6, 6] });
 
-        // --- UI LOGIC ---
         function toggleSearch() { 
-            const card = document.querySelector('.search-card');
-            const fab = document.getElementById('fabSearch');
-            if(card.classList.contains('active')) {
-                card.classList.remove('active'); fab.style.display = 'flex'; 
-            } else {
-                card.classList.add('active'); fab.style.display = 'none'; 
-                document.getElementById('resultsSheet').classList.remove('active');
-            }
+            const card = document.querySelector('.search-card'); const fab = document.getElementById('fabSearch');
+            if(card.classList.contains('active')) { card.classList.remove('active'); fab.style.display = 'flex'; } else { card.classList.add('active'); fab.style.display = 'none'; document.getElementById('resultsSheet').classList.remove('active'); }
         }
         document.querySelector('.search-card').classList.add('active');
 
-        function fermerResultats() { 
-            document.getElementById('resultsSheet').classList.remove('active');
-            setTimeout(() => { document.querySelector('.search-card').classList.add('active'); }, 300);
-        }
+        function fermerResultats() { document.getElementById('resultsSheet').classList.remove('active'); setTimeout(() => { document.querySelector('.search-card').classList.add('active'); }, 300); }
 
         function loadFavorites() {
-            const favs = JSON.parse(localStorage.getItem('tizi_favs') || '[]');
-            const container = document.getElementById('favContainer');
-            container.innerHTML = '';
+            const favs = JSON.parse(localStorage.getItem('tizi_favs') || '[]'); const container = document.getElementById('favContainer'); container.innerHTML = '';
             favs.forEach((fav, index) => {
-                const chip = document.createElement('div');
-                chip.className = 'fav-chip';
+                const chip = document.createElement('div'); chip.className = 'fav-chip';
                 chip.innerHTML = `<i class="fas fa-heart" style="color:var(--danger)"></i> ${fav.arr}`; 
                 chip.onclick = () => { document.getElementById('txtDepart').value = fav.dep; document.getElementById('txtArrivee').value = fav.arr; lancerRecherche(); };
                 chip.oncontextmenu = (e) => { e.preventDefault(); if(confirm("Supprimer ?")) { favs.splice(index, 1); localStorage.setItem('tizi_favs', JSON.stringify(favs)); loadFavorites(); } };
                 container.appendChild(chip);
             });
         }
-
         function saveFavorite() {
             const dep = document.getElementById('txtDepart').value; const arr = document.getElementById('txtArrivee').value;
             if(!dep || !arr) return alert("Remplissez le trajet !");
-            const favs = JSON.parse(localStorage.getItem('tizi_favs') || '[]');
-            favs.push({ dep, arr });
+            const favs = JSON.parse(localStorage.getItem('tizi_favs') || '[]'); favs.push({ dep, arr });
             localStorage.setItem('tizi_favs', JSON.stringify(favs));
-            const btn = document.querySelector('.btn-fav-save'); btn.classList.add('saved'); setTimeout(() => btn.classList.remove('saved'), 1000);
-            loadFavorites();
+            const btn = document.querySelector('.btn-fav-save'); btn.classList.add('saved'); setTimeout(() => btn.classList.remove('saved'), 1000); loadFavorites();
         }
         loadFavorites(); 
 
         function shareBus(busId, chauffeurNom) {
             const url = `${window.location.origin}${window.location.pathname}?bus=${busId}`;
-            if (navigator.share) { navigator.share({ title: 'Suivre ce Shuttl', text: `Suis le bus de ${chauffeurNom} !`, url: url }).catch(console.error); }
-            else { navigator.clipboard.writeText(url); alert("Lien copié !"); }
+            if (navigator.share) { navigator.share({ title: 'Suivre ce Shuttl', text: `Suis le bus de ${chauffeurNom} !`, url: url }).catch(console.error); } else { navigator.clipboard.writeText(url); alert("Lien copié !"); }
         }
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const sharedBusId = urlParams.get('bus');
+        const urlParams = new URLSearchParams(window.location.search); const sharedBusId = urlParams.get('bus');
         if(sharedBusId) { rechercheActive = true; document.querySelector('.search-card').classList.remove('active'); document.getElementById('fabSearch').style.display = 'flex'; }
 
-        // --- GEOLOC ---
         if (navigator.geolocation) {
             navigator.geolocation.watchPosition(pos => {
-                userLat = pos.coords.latitude; userLon = pos.coords.longitude;
-                userSpeed = pos.coords.speed || 0;
-                let speedKmH = userSpeed * 3.6;
-                if (speedKmH > 15) { isTraveling = true; } else { isTraveling = false; }
-
-                if(!userMarker) { userMarker = L.marker([userLat, userLon], {icon: iconUser}).addTo(map); map.setView([userLat, userLon], 14); }
-                else { userMarker.setLatLng([userLat, userLon]); }
+                userLat = pos.coords.latitude; userLon = pos.coords.longitude; userSpeed = pos.coords.speed || 0;
+                let speedKmH = userSpeed * 3.6; if (speedKmH > 15) { isTraveling = true; } else { isTraveling = false; }
+                if(!userMarker) { userMarker = L.marker([userLat, userLon], {icon: iconUser}).addTo(map); map.setView([userLat, userLon], 14); } else { userMarker.setLatLng([userLat, userLon]); }
                 if(rechercheActive) fetchBus();
             }, err => console.log(err), { enableHighAccuracy: true });
         }
@@ -551,16 +591,7 @@
                         const url = `https://nominatim.openstreetmap.org/search?format=json&q=${query}&countrycodes=dz&addressdetails=1&limit=5`;
                         const res = await fetch(url); const data = await res.json();
                         list.innerHTML = '';
-                        if(data.length > 0) {
-                            list.classList.add('active');
-                            data.forEach(item => {
-                                const name = item.name; const details = item.address.state || "Algérie";
-                                const div = document.createElement('div'); div.className = 'suggestion-item';
-                                div.innerHTML = `<strong>${name}</strong> <span style="font-size:0.8rem;">(${details})</span>`;
-                                div.onclick = () => { input.value = name; list.classList.remove('active'); };
-                                list.appendChild(div);
-                            });
-                        } else { list.classList.remove('active'); }
+                        if(data.length > 0) { list.classList.add('active'); data.forEach(item => { const name = item.name; const details = item.address.state || "Algérie"; const div = document.createElement('div'); div.className = 'suggestion-item'; div.innerHTML = `<strong>${name}</strong> <span style="font-size:0.8rem;">(${details})</span>`; div.onclick = () => { input.value = name; list.classList.remove('active'); }; list.appendChild(div); }); } else { list.classList.remove('active'); }
                     } catch(e) {}
                 }, 300);
             });
@@ -572,11 +603,13 @@
             isVisibleToDriver = !isVisibleToDriver;
             const toggle = document.getElementById('visToggleIcon'); const text = document.getElementById('visText');
             document.getElementById('btnVisibilite').classList.toggle('active');
+            
+            const t = translations[currentLang];
             if(isVisibleToDriver) { 
-                toggle.className = "fas fa-toggle-on"; toggle.style.color = "var(--success)"; text.innerText = "Visible"; 
+                toggle.className = "fas fa-toggle-on"; toggle.style.color = "var(--success)"; text.innerText = t.visible; 
                 document.getElementById('visIcon').style.color = "var(--success)";
             } else { 
-                toggle.className = "fas fa-toggle-off"; toggle.style.color = "#64748b"; text.innerText = "Invisible"; 
+                toggle.className = "fas fa-toggle-off"; toggle.style.color = "#64748b"; text.innerText = t.invisible; 
                 document.getElementById('visIcon').style.color = "#64748b";
             }
         }
@@ -587,10 +620,8 @@
             document.querySelectorAll('.leaflet-marker-icon .terminus-flag').forEach(el => el.parentElement.remove());
             if(!dep && !arr) return alert("Remplissez au moins une ville !");
             isTraveling = false; rechercheActive = true;
-            document.querySelector('.search-card').classList.remove('active'); 
-            document.getElementById('fabSearch').style.display = 'flex'; 
-            document.getElementById('resultsSheet').classList.add('active'); 
-            document.getElementById('busList').innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-muted);"><i class="fas fa-satellite-dish fa-spin fa-2x"></i><br><br>Recherche de Shuttl...</div>';
+            document.querySelector('.search-card').classList.remove('active'); document.getElementById('fabSearch').style.display = 'flex'; 
+            document.getElementById('resultsSheet').classList.add('active'); document.getElementById('busList').innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-muted);"><i class="fas fa-satellite-dish fa-spin fa-2x"></i><br><br>' + translations[currentLang].loading + '</div>';
             fetchBus();
         }
 
@@ -602,17 +633,14 @@
             try {
                 const res = await fetch(url); const data = await res.json();
                 if (data.routes && data.routes.length > 0) {
-                    currentRouteLayer = L.geoJSON(data.routes[0].geometry, { 
-                        style: { color: "#3b82f6", weight: 6, opacity: 0.9, lineCap: 'round' } 
-                    }).addTo(map);
+                    currentRouteLayer = L.geoJSON(data.routes[0].geometry, { style: { color: "#3b82f6", weight: 6, opacity: 0.9, lineCap: 'round' } }).addTo(map);
                     map.fitBounds(currentRouteLayer.getBounds(), { padding: [50, 50] });
                 }
             } catch (e) { console.error("Erreur trajet:", e); }
         }
 
-        // --- ACHAT TICKET (LISTE DÉROULANTE) ---
         function acheterTicket(chauffeur, dest, prix) {
-            alert(`🎟️ TICKET RÉSERVÉ !\n\n🚍 Bus : ${chauffeur}\n📍 Trajet : ${dest}\n💰 Prix : ${prix} DA\n\nMontrez cet écran au chauffeur.`);
+            alert(`🎟️ TICKET RÉSERVÉ !\n\n🚍 Bus : ${chauffeur}\n📍 Trajet : ${dest}\n💰 Prix : ${prix} DA`);
         }
 
         async function fetchBus() {
@@ -620,17 +648,12 @@
             const container = document.getElementById('busList');
             const dep = document.getElementById('txtDepart').value;
             const arr = document.getElementById('txtArrivee').value;
-            let effectiveVisibility = isVisibleToDriver;
-            if (isTraveling) effectiveVisibility = false;
+            let effectiveVisibility = isVisibleToDriver; if (isTraveling) effectiveVisibility = false;
 
             try {
                 const res = await fetch(SERVER_URL + '/api/trouver-bus', {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ 
-                        user_lat: userLat, user_lon: userLon, 
-                        depart_text: dep, arrivee_text: arr, 
-                        visible: effectiveVisibility, passenger_id: passengerId 
-                    })
+                    body: JSON.stringify({ user_lat: userLat, user_lon: userLon, depart_text: dep, arrivee_text: arr, visible: effectiveVisibility, passenger_id: passengerId })
                 });
                 const data = await res.json();
                 container.innerHTML = '';
@@ -649,12 +672,8 @@
                         `);
                         m.on('click', () => { afficherTrajet(bus); });
                         busMarkers[bus.bus_id] = m;
+                        if(sharedBusId && bus.bus_id === sharedBusId) { map.setView([bus.current_lat, bus.current_lon], 16); m.openPopup(); afficherTrajet(bus); }
 
-                        if(sharedBusId && bus.bus_id === sharedBusId) {
-                            map.setView([bus.current_lat, bus.current_lon], 16); m.openPopup(); afficherTrajet(bus);
-                        }
-
-                        // --- GENERATION DES BOUTONS DE TICKET (MODIFIÉ) ---
                         let ticketHtml = '';
                         if (bus.ticket_actif && bus.tarifs && bus.tarifs.length > 0) {
                             ticketHtml = '<div class="ticket-list">';
@@ -669,8 +688,7 @@
                             ticketHtml += '</div>';
                         }
 
-                        const div = document.createElement('div');
-                        div.className = 'bus-item';
+                        const div = document.createElement('div'); div.className = 'bus-item';
                         div.innerHTML = `
                             <div class="bus-row-main">
                                 <div style="background:rgba(255,255,255,0.1); width:45px; height:45px; border-radius:12px; display:flex; justify-content:center; align-items:center;">
@@ -692,7 +710,7 @@
                         div.onclick = () => { afficherTrajet(bus); map.setView([bus.current_lat, bus.current_lon], 16); m.openPopup(); };
                         container.appendChild(div);
                     });
-                } else { container.innerHTML = '<div style="padding:40px 20px; text-align:center; color:var(--text-muted);">Aucun Shuttl trouvé pour le moment.<br><small>Essayez une autre destination</small></div>'; }
+                } else { container.innerHTML = '<div style="padding:40px 20px; text-align:center; color:var(--text-muted);">' + translations[currentLang].no_bus + '<br><small>Essayez une autre destination</small></div>'; }
             } catch(e) { console.error(e); }
         }
 

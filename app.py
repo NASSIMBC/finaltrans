@@ -30,6 +30,11 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 else:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+# --- ROUTE HEALTH CHECK (POUR RENDER) ---
+@app.route('/health')
+def health_check():
+    return jsonify({"status": "ok", "timestamp": datetime.datetime.now().isoformat()}), 200
+
 # --- 1. LE CERVEAU GÉOGRAPHIQUE ---
 CITIES_DB = {
     "tizi ouzou": {"lat": 36.7118, "lon": 4.0505},
@@ -46,17 +51,20 @@ CITIES_DB = {
 }
 
 def haversine(lat1, lon1, lat2, lon2):
-    """Calcul la distance en KM entre deux points GPS"""
+    """Calcul la distance en KM entre deux points GPS (Version Robuste)"""
     try:
-        if not lat1 or not lon1 or not lat2 or not lon2: return 0
+        # Vérification stricte pour éviter les crashs
+        if lat1 is None or lon1 is None or lat2 is None or lon2 is None:
+            return 999999 
+
         R = 6371.0
-        dlat = math.radians(lat2 - lat1)
-        dlon = math.radians(lon2 - lon1)
-        a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2
+        dlat = math.radians(float(lat2) - float(lat1))
+        dlon = math.radians(float(lon2) - float(lon1))
+        a = math.sin(dlat / 2)**2 + math.cos(math.radians(float(lat1))) * math.cos(math.radians(float(lat2))) * math.sin(dlon / 2)**2
         c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
         return round(R * c, 2)
-    except:
-        return 0
+    except Exception as e:
+        return 999999
 
 # --- ROUTES PAGES (FRONTEND) ---
 @app.route('/')
@@ -222,7 +230,7 @@ def serve_manifest(): return send_from_directory('.', 'manifest.json')
 @app.route('/sw.js')
 def serve_sw(): return send_from_directory('.', 'sw.js')
 
-# --- API 4 : TROUVER BUS ---
+# --- API 4 : TROUVER BUS (VERSION INTELLIGENTE) ---
 @app.route('/api/trouver-bus', methods=['POST'])
 def api_trouver_bus():
     data = request.json
@@ -321,6 +329,23 @@ def api_trouver_bus():
                 temps_heures = dist_user_bus / vitesse_moyenne
                 eta_min = int(temps_heures * 60)
                 if eta_min < 1: eta_min = 1
+            
+            # --- FILTRAGE INTELLIGENT DES TICKETS ---
+            tarifs_bruts = driver.get('tarifs', [])
+            tarifs_filtrés = []
+            
+            if direction_reelle:
+                for t in tarifs_bruts:
+                    dest_ticket = clean_text(t.get('dest', ''))
+                    # On affiche le ticket si la destination correspond à la direction du bus
+                    if dest_ticket and (dest_ticket in direction_reelle or direction_reelle in dest_ticket):
+                        tarifs_filtrés.append(t)
+                
+                # Si aucun ticket ne correspond exactement, on affiche tout (fallback)
+                if not tarifs_filtrés and tarifs_bruts:
+                    tarifs_filtrés = tarifs_bruts
+            else:
+                tarifs_filtrés = tarifs_bruts
 
             bus_proches.append({
                 'bus_id': trip['chauffeur_id'],
@@ -336,7 +361,7 @@ def api_trouver_bus():
                 'ligne_start': coord_dep_ligne,
                 'ligne_end': coord_arr_ligne,
                 'ticket_actif': driver.get('ticket_actif', False),
-                'tarifs': driver.get('tarifs', [])
+                'tarifs': tarifs_filtrés # On renvoie la liste filtrée
             })
 
         bus_proches.sort(key=lambda x: x['distance_km'])

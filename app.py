@@ -17,7 +17,7 @@ CORS(app)
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-# Nettoyage des clés
+# Nettoyage des clés (suppression des guillemets éventuels)
 if SUPABASE_URL: 
     SUPABASE_URL = SUPABASE_URL.strip().strip("'").strip('"')
 if SUPABASE_KEY: 
@@ -30,7 +30,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 else:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# --- ROUTE HEALTH CHECK (POUR RENDER) ---
+# --- ROUTE HEALTH CHECK (AJOUTÉ : INDISPENSABLE POUR RENDER) ---
 @app.route('/health')
 def health_check():
     return jsonify({"status": "ok", "timestamp": datetime.datetime.now().isoformat()}), 200
@@ -53,7 +53,7 @@ CITIES_DB = {
 def haversine(lat1, lon1, lat2, lon2):
     """Calcul la distance en KM entre deux points GPS (Version Robuste)"""
     try:
-        # Vérification stricte pour éviter les crashs
+        # Vérification stricte pour éviter les crashs si GPS manquant
         if lat1 is None or lon1 is None or lat2 is None or lon2 is None:
             return 999999 
 
@@ -224,13 +224,7 @@ def stop_driving():
     except Exception as e:
         return jsonify({'status': 'error', 'error': str(e)}), 500
 
-# --- ROUTES STATIQUES ---
-@app.route('/manifest.json')
-def serve_manifest(): return send_from_directory('.', 'manifest.json')
-@app.route('/sw.js')
-def serve_sw(): return send_from_directory('.', 'sw.js')
-
-# --- API 4 : TROUVER BUS (VERSION INTELLIGENTE) ---
+# --- API 4 : TROUVER BUS (INTELLIGENT) ---
 @app.route('/api/trouver-bus', methods=['POST'])
 def api_trouver_bus():
     data = request.json
@@ -329,21 +323,17 @@ def api_trouver_bus():
                 temps_heures = dist_user_bus / vitesse_moyenne
                 eta_min = int(temps_heures * 60)
                 if eta_min < 1: eta_min = 1
-            
-            # --- FILTRAGE INTELLIGENT DES TICKETS ---
+
+            # FILTRAGE INTELLIGENT DES TICKETS
             tarifs_bruts = driver.get('tarifs', [])
             tarifs_filtrés = []
             
             if direction_reelle:
                 for t in tarifs_bruts:
                     dest_ticket = clean_text(t.get('dest', ''))
-                    # On affiche le ticket si la destination correspond à la direction du bus
                     if dest_ticket and (dest_ticket in direction_reelle or direction_reelle in dest_ticket):
                         tarifs_filtrés.append(t)
-                
-                # Si aucun ticket ne correspond exactement, on affiche tout (fallback)
-                if not tarifs_filtrés and tarifs_bruts:
-                    tarifs_filtrés = tarifs_bruts
+                if not tarifs_filtrés and tarifs_bruts: tarifs_filtrés = tarifs_bruts
             else:
                 tarifs_filtrés = tarifs_bruts
 
@@ -361,7 +351,7 @@ def api_trouver_bus():
                 'ligne_start': coord_dep_ligne,
                 'ligne_end': coord_arr_ligne,
                 'ticket_actif': driver.get('ticket_actif', False),
-                'tarifs': tarifs_filtrés # On renvoie la liste filtrée
+                'tarifs': tarifs_filtrés
             })
 
         bus_proches.sort(key=lambda x: x['distance_km'])
